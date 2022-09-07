@@ -55,7 +55,7 @@ func main() {
     var waitGroup sync.WaitGroup
     //errChan := make(chan error , 2)
 
-    for _idx:=0; _idx < 2; _idx++ {
+    for _idx:=0; _idx < 10; _idx++ {
         waitGroup.Add(1)
         go func(){
             fmt.Printf("Starting to call %s \n", fmt.Sprintf( "/tmp/temp%d.txt", rand.Intn(100)))
