@@ -1,0 +1,30 @@
+ROWS: 5000
+COLUMNS:
+  - 
+    IDX: 01
+    Name: id
+    DataType: int
+    Function: sequence
+  -
+    IDX: 02
+    Name: payer
+    DataType: string
+    Function: template
+    Parameters:
+      - key: text
+        value: User{{.Label}}
+  -
+    IDX: 03
+    Name: receiver
+    DataType: string
+    Function: template
+    Parameters:
+      - key: text
+        value: User{{.Label}}
+  -
+    IDX: 04
+    Name: amount
+    DataType: int
+    Function: random
+    Max: 10000
+    Min: 1
