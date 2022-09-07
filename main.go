@@ -13,6 +13,7 @@ import (
     "time"
     "html/template"
     "bytes"
+    "sync"
 )
 
 type MockDataStructure struct {
@@ -51,7 +52,18 @@ func main() {
         fmt.Printf("Column name is : %s and data type: %s, Function: %s, Max: %d, Min: %d \n", _columnCfg.Name, _columnCfg.DataType, _columnCfg.Function, _columnCfg.Min, _columnCfg.Max)
     }
 
-    GenerateDataTo(mockDataConfig, "/tmp/temp.txt")
+    var waitGroup sync.WaitGroup
+    //errChan := make(chan error , 2)
+
+    for _idx:=0; _idx < 2; _idx++ {
+        waitGroup.Add(1)
+        go func(){
+            fmt.Printf("Starting to call %s \n", fmt.Sprintf( "/tmp/temp%d.txt", rand.Intn(100)))
+            defer waitGroup.Done()
+            GenerateDataTo(mockDataConfig, fmt.Sprintf( "/tmp/temp%d.txt", rand.Intn(100)) )
+        } ()
+    }
+    waitGroup.Wait()
 }
 
 
