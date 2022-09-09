@@ -1,0 +1,58 @@
+* Data config file
+#+BEGIN_SRC
+ROWS: 5000
+COLUMNS:
+  - 
+    IDX: 01
+    Name: id
+    DataType: int
+    Function: sequence
+  -
+    IDX: 02
+    Name: payer
+    DataType: string
+    Function: template
+    Parameters:
+      - key: text
+        value: User{{.Label}}
+  -
+    IDX: 03
+    Name: receiver
+    DataType: string
+    Function: template
+    Parameters:
+      - key: name
+        value: RandomUserID
+      - key: format
+        value: "user%010d"
+      - key: min
+        value: 1
+      - key: max
+        value: 1000
+  -
+    IDX: 04
+    Name: amount
+    DataType: int
+    Function: random
+    Max: 10000
+    Min: 1
+#+END_SRC
+
+* Command
+  | Parameter | Comment                                        |
+  |-----------+------------------------------------------------|
+  | config    | The data config file to generate the data      |
+  | output    | The file to be outputed to                     |
+  | rows      | Number of rows to be generated for each thread |
+  | threads   | Number of threads                              |
+
+  [[./png/001.png]]
+  [[./png/002.png]]
+
+* Performance
+  | Secnario                 | Data volume | Disk Size | Execution Time(s) | rows/s | Volumes/s |
+  |--------------------------+-------------+-----------+-------------------+--------+-----------|
+  | First test. Sinle thread |     5000000 | 223M      |               129 |  38800 | 1.7MB     |
+  | parallel: 2              |    10000000 | 446M      |               140 |  77600 | 3.4MB     |
+  | parallel: 10             |    50000000 | 2.3G      |               240 | 208000 | 9.8MB     |
+  | parallel: 16             |    80000000 | 3.5G      |               433 | 184757 | 8.2MB     |

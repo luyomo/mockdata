@@ -19,8 +19,14 @@ COLUMNS:
     DataType: string
     Function: template
     Parameters:
-      - key: text
-        value: User{{.Label}}
+      - key: name
+        value: RandomUserID
+      - key: format
+        value: "user%010d"
+      - key: min
+        value: 1
+      - key: max
+        value: 1000
   -
     IDX: 04
     Name: amount
