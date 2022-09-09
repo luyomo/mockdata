@@ -56,3 +56,7 @@ COLUMNS:
   | parallel: 2              |    10000000 | 446M      |               140 |  77600 | 3.4MB     |
   | parallel: 10             |    50000000 | 2.3G      |               240 | 208000 | 9.8MB     |
   | parallel: 16             |    80000000 | 3.5G      |               433 | 184757 | 8.2MB     |
+
+
+* TODO
+  + Add the TUI from OhMyTiUP To mockdata
