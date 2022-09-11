@@ -17,6 +17,7 @@ import (
 
 	//    "errors"
 
+	//	"github.com/luyomo/mockdata/pkg/tui"
 	"github.com/spf13/cobra"
 )
 
@@ -46,6 +47,7 @@ type MockDataStructure struct {
 }
 
 func main() {
+
 	// fmt.Printf("This is the test \n")
 	var threads, rows int
 	var configFile string

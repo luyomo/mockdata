@@ -60,3 +60,11 @@ COLUMNS:
 
 * TODO
   + Add the TUI from OhMyTiUP To mockdata
+    
+
+* Reference
+** Issues
+   + missing go.sum entry for module providing package
+#+BEGIN_SRC
+go mod tidy
+#+END_SRC
