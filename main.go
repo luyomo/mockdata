@@ -10,6 +10,8 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -47,13 +49,12 @@ type MockDataStructure struct {
 }
 
 func main() {
-
 	// fmt.Printf("This is the test \n")
 	var threads, rows int
 	var configFile string
 	var outputFile string
 
-	rootCmd.PersistentFlags().IntVar(&threads, "threads", 1, "Threads to generate the data")
+	rootCmd.PersistentFlags().IntVar(&threads, "threads", runtime.NumCPU(), "Threads to generate the data")
 	rootCmd.PersistentFlags().IntVar(&rows, "rows", 1, "Number of rows for each thread")
 	rootCmd.PersistentFlags().StringVar((*string)(&configFile), "config", "", "Config file for data generattion")
 	rootCmd.PersistentFlags().StringVar((*string)(&outputFile), "output", "", "Output file for data generattion")
@@ -80,16 +81,26 @@ func main() {
 	//     fmt.Printf("Column name is : %s and data type: %s, Function: %s, Max: %d, Min: %d \n", _columnCfg.Name, _columnCfg.DataType, _columnCfg.Function, _columnCfg.Min, _columnCfg.Max)
 	// }
 
+	re := regexp.MustCompile("(.*).csv")
+	retValue := re.FindStringSubmatch(outputFile)
+	fmt.Printf("The return value is %#v \n", retValue)
+	if len(retValue) == 0 {
+		fmt.Printf("Please input the output file like A.csv\n")
+		return
+	}
+
 	var waitGroup sync.WaitGroup
 	//errChan := make(chan error , 2)
 
 	for _idx := 0; _idx < threads; _idx++ {
 		waitGroup.Add(1)
-		go func() {
+		go func(_index int) {
+			fmt.Printf("The index is <%d> \n", _index)
+			outputFile := fmt.Sprintf("%s%03d.csv", retValue[1], _index)
 			// fmt.Printf("Starting to call %s \n", fmt.Sprintf( "/tmp/temp%d.txt", rand.Intn(100)))
 			defer waitGroup.Done()
-			GenerateDataTo(rows, mockDataConfig, outputFile)
-		}()
+			GenerateDataTo(_index, rows, mockDataConfig, outputFile)
+		}(_idx)
 	}
 	waitGroup.Wait()
 }
@@ -107,7 +118,7 @@ func (p RandomUserID) GenerateData() string {
 	return fmt.Sprintf(p.MsgFormat, _data)
 }
 
-func GenerateDataTo(rows int, dataConfig MockDataStructure, file string) error {
+func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string) error {
 	// Prepare the file handle to output the data into
 	fFile, err := os.Create(file)
 	if err != nil {
@@ -166,7 +177,7 @@ func GenerateDataTo(rows int, dataConfig MockDataStructure, file string) error {
 		for _, column := range dataConfig.Columns {
 			var _data string
 			if column.Function == "sequence" {
-				_data = strconv.Itoa(idx)
+				_data = strconv.Itoa(threads*rows + idx)
 			}
 
 			if column.Function == "random" {
