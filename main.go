@@ -17,7 +17,13 @@ import (
 	"sync"
 	"time"
 
-	//    "errors"
+	"archive/tar"
+	"compress/gzip"
+	"io"
+
+	"os/exec"
+
+	"errors"
 
 	//	"github.com/luyomo/mockdata/pkg/tui"
 	"github.com/spf13/cobra"
@@ -49,6 +55,8 @@ type MockDataStructure struct {
 }
 
 func main() {
+	InstallTiDBLightning()
+
 	// fmt.Printf("This is the test \n")
 	var threads, rows int
 	var configFile string
@@ -210,4 +218,133 @@ func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string
 	}
 	writer.Flush()
 	return nil
+}
+
+func InstallTiDBLightning() error {
+	if runtime.GOOS == "windows" {
+		fmt.Println("Can't Execute this on a windows machine")
+	} else {
+		if _, err := os.Stat("mockdata/bin/tidb-lightning"); errors.Is(err, os.ErrNotExist) {
+			// file does not exist
+
+			fmt.Printf("The os is <%s> \n", runtime.GOOS)
+			fmt.Printf("The os is <%s> \n", runtime.GOARCH)
+			binFile := fmt.Sprintf("tidb-community-toolkit-%s-linux-%s.tar.gz", "v6.2.0", runtime.GOARCH)
+			fullBinFile := fmt.Sprintf("tidb-community-toolkit-%s-linux-%s/tidb-lightning-%s-linux-%s.tar.gz", "v6.2.0", runtime.GOARCH, "v6.2.0", runtime.GOARCH)
+
+			cmd := exec.Command("wget", "https://download.pingcap.org/"+binFile, "-O", "/tmp/"+binFile)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err := cmd.Run(); err != nil {
+				return err
+			}
+
+			r, err := os.Open("/tmp/" + binFile)
+			if err != nil {
+				fmt.Println("error")
+			}
+			ExtractTarGz(r, []string{fullBinFile})
+
+			cmd = exec.Command("rm", "-rf", "/tmp/"+binFile)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err := cmd.Run(); err != nil {
+				return err
+			}
+
+			r, err = os.Open("tidb-community-toolkit-v6.2.0-linux-arm64/tidb-lightning-v6.2.0-linux-arm64.tar.gz")
+			if err != nil {
+				fmt.Println("error")
+			}
+			ExtractTarGz(r, []string{"tidb-lightning"})
+
+			cmd = exec.Command("mkdir", "-p", "mockdata/bin")
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err := cmd.Run(); err != nil {
+				return err
+			}
+
+			cmd = exec.Command("mv", "tidb-lightning", "mockdata/bin/")
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err := cmd.Run(); err != nil {
+				return err
+			}
+
+			cmd = exec.Command("chmod", "755", "mockdata/bin/tidb-lightning")
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err := cmd.Run(); err != nil {
+				return err
+			}
+
+			cmd = exec.Command("rm", "-rf", fmt.Sprintf("tidb-community-toolkit-%s-linux-%s", "v6.2.0", runtime.GOARCH))
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err := cmd.Run(); err != nil {
+				return err
+			}
+		}
+
+	}
+	return nil
+}
+
+func ExtractTarGz(gzipStream io.Reader, files []string) {
+	uncompressedStream, err := gzip.NewReader(gzipStream)
+	if err != nil {
+		log.Fatal("ExtractTarGz: NewReader failed")
+	}
+
+	tarReader := tar.NewReader(uncompressedStream)
+
+	for true {
+		header, err := tarReader.Next()
+
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			log.Fatalf("ExtractTarGz: Next() failed: %s", err.Error())
+		}
+
+		switch header.Typeflag {
+		case tar.TypeDir:
+			fmt.Printf("The folder name is %s \n", header.Name)
+			if err := os.Mkdir(header.Name, 0755); err != nil {
+				log.Fatalf("ExtractTarGz: Mkdir() failed: %s", err.Error())
+			}
+		case tar.TypeReg:
+			fmt.Printf("The file name is %s \n", header.Name)
+			if contains(files, header.Name) {
+				outFile, err := os.Create(header.Name)
+				if err != nil {
+					log.Fatalf("ExtractTarGz: Create() failed: %s", err.Error())
+				}
+				if _, err := io.Copy(outFile, tarReader); err != nil {
+					log.Fatalf("ExtractTarGz: Copy() failed: %s", err.Error())
+				}
+				outFile.Close()
+			}
+
+		default:
+			log.Fatalf(
+				"ExtractTarGz: uknown type: %s in %s",
+				header.Typeflag,
+				header.Name)
+		}
+
+	}
+}
+
+func contains(s []string, str string) bool {
+	for _, v := range s {
+		if v == str {
+			return true
+		}
+	}
+
+	return false
 }
