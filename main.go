@@ -27,7 +27,18 @@ import (
 
 	//	"github.com/luyomo/mockdata/pkg/tui"
 	"github.com/spf13/cobra"
+
+        "github.com/luyomo/mockdata/embed"
 )
+
+
+type TiDBLightningConn struct {
+    TiDBHost string
+    TiDBPort int
+    TiDBUser string
+    TiDBPassword string
+    PDIP int
+}
 
 var rootCmd = &cobra.Command{
 	Use:   "mock",
@@ -56,6 +67,10 @@ type MockDataStructure struct {
 
 func main() {
 	InstallTiDBLightning()
+
+        parseTemplate()
+
+        return
 
 	// fmt.Printf("This is the test \n")
 	var threads, rows int
@@ -224,8 +239,10 @@ func InstallTiDBLightning() error {
 	if runtime.GOOS == "windows" {
 		fmt.Println("Can't Execute this on a windows machine")
 	} else {
+                fmt.Printf("Starting to check the data \n")
 		if _, err := os.Stat("mockdata/bin/tidb-lightning"); errors.Is(err, os.ErrNotExist) {
 			// file does not exist
+                        fmt.Printf("Started to check mockdata \n")
 
 			fmt.Printf("The os is <%s> \n", runtime.GOOS)
 			fmt.Printf("The os is <%s> \n", runtime.GOARCH)
@@ -252,7 +269,7 @@ func InstallTiDBLightning() error {
 				return err
 			}
 
-			r, err = os.Open("tidb-community-toolkit-v6.2.0-linux-arm64/tidb-lightning-v6.2.0-linux-arm64.tar.gz")
+			r, err = os.Open(fmt.Sprintf("tidb-community-toolkit-%s-linux-%s/tidb-lightning-%s-linux-%s.tar.gz", "v6.2.0", runtime.GOARCH, "v6.2.0", runtime.GOARCH  ))
 			if err != nil {
 				fmt.Println("error")
 			}
@@ -286,7 +303,7 @@ func InstallTiDBLightning() error {
 				return err
 			}
 		}
-
+                fmt.Print("Completed the file check \n")
 	}
 	return nil
 }
@@ -294,6 +311,7 @@ func InstallTiDBLightning() error {
 func ExtractTarGz(gzipStream io.Reader, files []string) {
 	uncompressedStream, err := gzip.NewReader(gzipStream)
 	if err != nil {
+		fmt.Printf("The error is <%#v>", err)
 		log.Fatal("ExtractTarGz: NewReader failed")
 	}
 
@@ -347,4 +365,31 @@ func contains(s []string, str string) bool {
 	}
 
 	return false
+}
+
+func parseTemplate() {
+
+    var dbConn TiDBLightningConn
+    dbConn.TiDBHost = "tidb-host"
+    dbConn.TiDBPort = 4000
+    dbConn.TiDBUser = "root"
+    dbConn.TiDBPassword = "password"
+    dbConn.PDIP = 1111
+
+    fmt.Printf("This is the testing data \n")
+    data, err := embed.ReadTemplate("templates/tidb-lightning.toml.tpl")
+    if err != nil {
+        panic(err)
+    }
+    fmt.Printf("This is the template %s \n",data)
+
+    tmpl, err := template.New("").Parse(string(data))
+    if err != nil {
+        log.Fatalf("Parse: %v", err)
+    }
+
+    var ret bytes.Buffer
+    err = tmpl.Execute(&ret, dbConn)
+    fmt.Printf("The data is %s \n", ret.String())
+
 }
