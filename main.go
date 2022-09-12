@@ -37,7 +37,7 @@ type TiDBLightningConn struct {
     TiDBPort int
     TiDBUser string
     TiDBPassword string
-    PDIP int
+    PDIP string
 }
 
 var rootCmd = &cobra.Command{
@@ -68,23 +68,33 @@ type MockDataStructure struct {
 func main() {
 	InstallTiDBLightning()
 
-        parseTemplate()
-
-        return
-
 	// fmt.Printf("This is the test \n")
 	var threads, rows int
 	var configFile string
 	var outputFile string
 
+        var dbConn TiDBLightningConn
+
 	rootCmd.PersistentFlags().IntVar(&threads, "threads", runtime.NumCPU(), "Threads to generate the data")
 	rootCmd.PersistentFlags().IntVar(&rows, "rows", 1, "Number of rows for each thread")
 	rootCmd.PersistentFlags().StringVar((*string)(&configFile), "config", "", "Config file for data generattion")
 	rootCmd.PersistentFlags().StringVar((*string)(&outputFile), "output", "", "Output file for data generattion")
+
+	rootCmd.PersistentFlags().StringVar((*string)(&dbConn.TiDBHost), "host", "", "TiDB Host name")
+	rootCmd.PersistentFlags().IntVar(&dbConn.TiDBPort, "port", 4000, "TiDB Port")
+	rootCmd.PersistentFlags().StringVar((*string)(&dbConn.TiDBUser), "user", "", "TiDB User")
+	rootCmd.PersistentFlags().StringVar((*string)(&dbConn.TiDBPassword), "password", "", "TiDB Password")
+	rootCmd.PersistentFlags().StringVar((*string)(&dbConn.PDIP), "pd-ip", "", "pd ip address")
+
+
+
 	rootCmd.Execute()
 	// fmt.Printf("The threads are %d \n", threads)
 	// fmt.Printf("The config file are %s \n", configFile)
 	// fmt.Printf("The config file are %s \n", outputFile)
+        fmt.Printf("The TiDB config info is <%#v> \n", dbConn)
+
+        parseTemplate(dbConn)
 
 	yfile, err := ioutil.ReadFile(configFile)
 
@@ -367,21 +377,13 @@ func contains(s []string, str string) bool {
 	return false
 }
 
-func parseTemplate() {
-
-    var dbConn TiDBLightningConn
-    dbConn.TiDBHost = "tidb-host"
-    dbConn.TiDBPort = 4000
-    dbConn.TiDBUser = "root"
-    dbConn.TiDBPassword = "password"
-    dbConn.PDIP = 1111
-
+func parseTemplate(dbConn TiDBLightningConn) {
     fmt.Printf("This is the testing data \n")
     data, err := embed.ReadTemplate("templates/tidb-lightning.toml.tpl")
     if err != nil {
         panic(err)
     }
-    fmt.Printf("This is the template %s \n",data)
+ //   fmt.Printf("This is the template %s \n",data)
 
     tmpl, err := template.New("").Parse(string(data))
     if err != nil {
@@ -390,6 +392,22 @@ func parseTemplate() {
 
     var ret bytes.Buffer
     err = tmpl.Execute(&ret, dbConn)
-    fmt.Printf("The data is %s \n", ret.String())
+//    fmt.Printf("The data is %s \n", ret.String())
+
+    fo, err := os.Create("/tmp/tidb-lightning.toml")
+    if err != nil {
+        panic(err)
+    }
+
+    // close fo on exit and check for its returned error
+    defer func() {
+        if err := fo.Close(); err != nil {
+            panic(err)
+        }
+    }()
+
+    if _, err := fo.Write(ret.Bytes()); err != nil {
+        panic(err)
+    }
 
 }
