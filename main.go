@@ -10,7 +10,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
-	"regexp"
+//	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -38,6 +38,7 @@ type TiDBLightningConn struct {
     TiDBUser string
     TiDBPassword string
     PDIP string
+    DataFolder string
 }
 
 var rootCmd = &cobra.Command{
@@ -71,14 +72,16 @@ func main() {
 	// fmt.Printf("This is the test \n")
 	var threads, rows int
 	var configFile string
-	var outputFile string
+	var outputFolder string
+        var fileName string
 
         var dbConn TiDBLightningConn
 
 	rootCmd.PersistentFlags().IntVar(&threads, "threads", runtime.NumCPU(), "Threads to generate the data")
 	rootCmd.PersistentFlags().IntVar(&rows, "rows", 1, "Number of rows for each thread")
 	rootCmd.PersistentFlags().StringVar((*string)(&configFile), "config", "", "Config file for data generattion")
-	rootCmd.PersistentFlags().StringVar((*string)(&outputFile), "output", "", "Output file for data generattion")
+	rootCmd.PersistentFlags().StringVar((*string)(&outputFolder), "output", "", "Output folder for data generattion")
+	rootCmd.PersistentFlags().StringVar((*string)(&fileName), "file-name", "", "file or table name for data generattion. For tidb lightning, please user schema_name.table_name.csv")
 
 	rootCmd.PersistentFlags().StringVar((*string)(&dbConn.TiDBHost), "host", "", "TiDB Host name")
 	rootCmd.PersistentFlags().IntVar(&dbConn.TiDBPort, "port", 4000, "TiDB Port")
@@ -86,15 +89,12 @@ func main() {
 	rootCmd.PersistentFlags().StringVar((*string)(&dbConn.TiDBPassword), "password", "", "TiDB Password")
 	rootCmd.PersistentFlags().StringVar((*string)(&dbConn.PDIP), "pd-ip", "", "pd ip address")
 
-
-
 	rootCmd.Execute()
 	// fmt.Printf("The threads are %d \n", threads)
 	// fmt.Printf("The config file are %s \n", configFile)
 	// fmt.Printf("The config file are %s \n", outputFile)
         fmt.Printf("The TiDB config info is <%#v> \n", dbConn)
 
-        parseTemplate(dbConn)
 
 	yfile, err := ioutil.ReadFile(configFile)
 
@@ -114,13 +114,13 @@ func main() {
 	//     fmt.Printf("Column name is : %s and data type: %s, Function: %s, Max: %d, Min: %d \n", _columnCfg.Name, _columnCfg.DataType, _columnCfg.Function, _columnCfg.Min, _columnCfg.Max)
 	// }
 
-	re := regexp.MustCompile("(.*).csv")
-	retValue := re.FindStringSubmatch(outputFile)
-	fmt.Printf("The return value is %#v \n", retValue)
-	if len(retValue) == 0 {
-		fmt.Printf("Please input the output file like A.csv\n")
-		return
-	}
+//	re := regexp.MustCompile("(.*).csv")
+//	retValue := re.FindStringSubmatch(outputFolder)
+//	fmt.Printf("The return value is %#v \n", retValue)
+//	if len(retValue) == 0 {
+//		fmt.Printf("Please input the output file like A.csv\n")
+//		return
+//	}
 
 	var waitGroup sync.WaitGroup
 	//errChan := make(chan error , 2)
@@ -129,10 +129,36 @@ func main() {
 		waitGroup.Add(1)
 		go func(_index int) {
 			fmt.Printf("The index is <%d> \n", _index)
-			outputFile := fmt.Sprintf("%s%03d.csv", retValue[1], _index)
+			//outputFile := fmt.Sprintf("%s%03d.csv", retValue[1], _index)
+
+                        // Make the folder to populate the data
+                        csvFolder := fmt.Sprintf("%s/%03d", outputFolder, _index)
+			cmd := exec.Command("mkdir", "-p", csvFolder )
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err := cmd.Run(); err != nil {
+                            panic(err)
+                            return
+			}
+
+                        dbConn.DataFolder = csvFolder
+                        lightningConfigFile := fmt.Sprintf("%s/tidb-lightning.%03d.toml", outputFolder, _index)
+
+                        csvFile := fmt.Sprintf("%s/%s.csv", csvFolder, fileName)
+			GenerateDataTo(_index, rows, mockDataConfig, csvFile)
+
+                        parseTemplate(dbConn, lightningConfigFile )
+			fmt.Printf("The file is <%s> \n", lightningConfigFile )
 			// fmt.Printf("Starting to call %s \n", fmt.Sprintf( "/tmp/temp%d.txt", rand.Intn(100)))
+                        csvFolder = fmt.Sprintf("%s/%03d", outputFolder, _index)
+			cmd = exec.Command("mockdata/bin/tidb-lightning", "--config", lightningConfigFile )
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err := cmd.Run(); err != nil {
+                            panic(err)
+                            return
+			}
 			defer waitGroup.Done()
-			GenerateDataTo(_index, rows, mockDataConfig, outputFile)
 		}(_idx)
 	}
 	waitGroup.Wait()
@@ -377,7 +403,7 @@ func contains(s []string, str string) bool {
 	return false
 }
 
-func parseTemplate(dbConn TiDBLightningConn) {
+func parseTemplate(dbConn TiDBLightningConn, configFile string) {
     fmt.Printf("This is the testing data \n")
     data, err := embed.ReadTemplate("templates/tidb-lightning.toml.tpl")
     if err != nil {
@@ -394,7 +420,8 @@ func parseTemplate(dbConn TiDBLightningConn) {
     err = tmpl.Execute(&ret, dbConn)
 //    fmt.Printf("The data is %s \n", ret.String())
 
-    fo, err := os.Create("/tmp/tidb-lightning.toml")
+//    fo, err := os.Create("/tmp/tidb-lightning.toml")
+    fo, err := os.Create(configFile)
     if err != nil {
         panic(err)
     }

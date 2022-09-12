@@ -1,3 +1,4 @@
+[lightning]
 level = "info"
 file = "tidb-lightning.log"
 
@@ -6,7 +7,7 @@ backend = "local"
 sorted-kv-dir = "/tmp/sorted-kv-dir"
 
 [mydumper]
-data-source-dir = "/tmp/recursive-data"
+data-source-dir = "{{ .DataFolder }}"
 
 filter = ['*.*', '!mysql.*', '!sys.*', '!INFORMATION_SCHEMA.*', '!PERFORMANCE_SCHEMA.*', '!METRICS_SCHEMA.*', '!INSPECTION_SCHEMA.*']
 
