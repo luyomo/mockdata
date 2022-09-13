@@ -4,6 +4,7 @@ file = "tidb-lightning.log"
 
 [tikv-importer]
 backend = "local"
+incremental-import = true
 sorted-kv-dir = "/tmp/sorted-kv-dir"
 
 [mydumper]
@@ -28,3 +29,7 @@ user = "{{ .TiDBUser }}"
 password = "{{ .TiDBPassword }}"
 status-port = 10080
 pd-addr = "{{ .PDIP }}:2379"
+
+[post-restore]
+checksum = "off"
+analyze = "off"

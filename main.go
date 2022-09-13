@@ -108,60 +108,60 @@ func main() {
 	if err != nil {
 		log.Fatalf("error: %v", err)
 	}
-	//fmt.Printf("--- t:\n%v\n\n", mockDataConfig)
-	//fmt.Printf("The number of rows is <%d> \n", mockDataConfig.Rows)
-	// for _, _columnCfg := range mockDataConfig.Columns {
-	//     fmt.Printf("Column name is : %s and data type: %s, Function: %s, Max: %d, Min: %d \n", _columnCfg.Name, _columnCfg.DataType, _columnCfg.Function, _columnCfg.Min, _columnCfg.Max)
-	// }
+        csvOutputFolder := outputFolder + "/data"
+	cmd := exec.Command("mkdir", "-p", csvOutputFolder )
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+            panic(err)
+            return
+	}
 
-//	re := regexp.MustCompile("(.*).csv")
-//	retValue := re.FindStringSubmatch(outputFolder)
-//	fmt.Printf("The return value is %#v \n", retValue)
-//	if len(retValue) == 0 {
-//		fmt.Printf("Please input the output file like A.csv\n")
-//		return
-//	}
-
+        for _loop := 0; _loop < 100; _loop++  {
 	var waitGroup sync.WaitGroup
 	//errChan := make(chan error , 2)
 
+        fmt.Printf("The number thread is <%d> \n", threads)
 	for _idx := 0; _idx < threads; _idx++ {
 		waitGroup.Add(1)
 		go func(_index int) {
-			fmt.Printf("The index is <%d> \n", _index)
+			fmt.Printf("The index is <%d> \n", _index + _loop*threads)
 			//outputFile := fmt.Sprintf("%s%03d.csv", retValue[1], _index)
 
                         // Make the folder to populate the data
-                        csvFolder := fmt.Sprintf("%s/%03d", outputFolder, _index)
-			cmd := exec.Command("mkdir", "-p", csvFolder )
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			if err := cmd.Run(); err != nil {
-                            panic(err)
-                            return
-			}
 
-                        dbConn.DataFolder = csvFolder
-                        lightningConfigFile := fmt.Sprintf("%s/tidb-lightning.%03d.toml", outputFolder, _index)
 
-                        csvFile := fmt.Sprintf("%s/%s.csv", csvFolder, fileName)
-			GenerateDataTo(_index, rows, mockDataConfig, csvFile)
+                        csvFile := fmt.Sprintf("%s/%s.%03d.csv", csvOutputFolder, fileName, _index)
+			GenerateDataTo(_index + _loop*threads, rows, mockDataConfig, csvFile)
 
-                        parseTemplate(dbConn, lightningConfigFile )
-			fmt.Printf("The file is <%s> \n", lightningConfigFile )
-			// fmt.Printf("Starting to call %s \n", fmt.Sprintf( "/tmp/temp%d.txt", rand.Intn(100)))
-                        csvFolder = fmt.Sprintf("%s/%03d", outputFolder, _index)
-			cmd = exec.Command("mockdata/bin/tidb-lightning", "--config", lightningConfigFile )
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			if err := cmd.Run(); err != nil {
-                            panic(err)
-                            return
-			}
 			defer waitGroup.Done()
 		}(_idx)
 	}
+
 	waitGroup.Wait()
+
+        dbConn.DataFolder = csvOutputFolder
+        lightningConfigFile := fmt.Sprintf("%s/tidb-lightning.toml", outputFolder)
+        parseTemplate(dbConn, lightningConfigFile )
+	fmt.Printf("The file is <%s> \n", lightningConfigFile )
+	// fmt.Printf("Starting to call %s \n", fmt.Sprintf( "/tmp/temp%d.txt", rand.Intn(100)))
+	cmd = exec.Command("mockdata/bin/tidb-lightning", "--config", lightningConfigFile )
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+            panic(err)
+            return
+	}
+
+        csvOutputFolder := outputFolder + "/data"
+	cmd := exec.Command("rm", "-f", csvOutputFolder + "/*" )
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+            panic(err)
+            return
+	}
+     }
 }
 
 type RandomUserID struct {
