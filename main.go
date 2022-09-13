@@ -70,7 +70,7 @@ func main() {
 	InstallTiDBLightning()
 
 	// fmt.Printf("This is the test \n")
-	var threads, rows int
+	var threads, rows, loop int
 	var configFile string
 	var outputFolder string
         var fileName string
@@ -79,13 +79,14 @@ func main() {
 
 	rootCmd.PersistentFlags().IntVar(&threads, "threads", runtime.NumCPU(), "Threads to generate the data")
 	rootCmd.PersistentFlags().IntVar(&rows, "rows", 1, "Number of rows for each thread")
+	rootCmd.PersistentFlags().IntVar(&loop, "loop", 1, "TiDB Lightning loop")
 	rootCmd.PersistentFlags().StringVar((*string)(&configFile), "config", "", "Config file for data generattion")
 	rootCmd.PersistentFlags().StringVar((*string)(&outputFolder), "output", "", "Output folder for data generattion")
 	rootCmd.PersistentFlags().StringVar((*string)(&fileName), "file-name", "", "file or table name for data generattion. For tidb lightning, please user schema_name.table_name.csv")
 
 	rootCmd.PersistentFlags().StringVar((*string)(&dbConn.TiDBHost), "host", "", "TiDB Host name")
 	rootCmd.PersistentFlags().IntVar(&dbConn.TiDBPort, "port", 4000, "TiDB Port")
-	rootCmd.PersistentFlags().StringVar((*string)(&dbConn.TiDBUser), "user", "", "TiDB User")
+	rootCmd.PersistentFlags().StringVar((*string)(&dbConn.TiDBUser), "user", "root", "TiDB User")
 	rootCmd.PersistentFlags().StringVar((*string)(&dbConn.TiDBPassword), "password", "", "TiDB Password")
 	rootCmd.PersistentFlags().StringVar((*string)(&dbConn.PDIP), "pd-ip", "", "pd ip address")
 
@@ -117,7 +118,7 @@ func main() {
             return
 	}
 
-        for _loop := 0; _loop < 100; _loop++  {
+        for _loop := 0; _loop < loop; _loop++  {
 	var waitGroup sync.WaitGroup
 	//errChan := make(chan error , 2)
 
