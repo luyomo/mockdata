@@ -1,12 +1,14 @@
+[lightning]
 level = "info"
 file = "tidb-lightning.log"
 
 [tikv-importer]
 backend = "local"
+incremental-import = true
 sorted-kv-dir = "/tmp/sorted-kv-dir"
 
 [mydumper]
-data-source-dir = "/tmp/recursive-data"
+data-source-dir = "{{ .DataFolder }}"
 
 filter = ['*.*', '!mysql.*', '!sys.*', '!INFORMATION_SCHEMA.*', '!PERFORMANCE_SCHEMA.*', '!METRICS_SCHEMA.*', '!INSPECTION_SCHEMA.*']
 
@@ -27,3 +29,7 @@ user = "{{ .TiDBUser }}"
 password = "{{ .TiDBPassword }}"
 status-port = 10080
 pd-addr = "{{ .PDIP }}:2379"
+
+[post-restore]
+checksum = "off"
+analyze = "off"

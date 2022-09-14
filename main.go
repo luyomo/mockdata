@@ -10,7 +10,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
-	"regexp"
+//	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -37,7 +37,8 @@ type TiDBLightningConn struct {
     TiDBPort int
     TiDBUser string
     TiDBPassword string
-    PDIP int
+    PDIP string
+    DataFolder string
 }
 
 var rootCmd = &cobra.Command{
@@ -68,23 +69,33 @@ type MockDataStructure struct {
 func main() {
 	InstallTiDBLightning()
 
-        parseTemplate()
-
-        return
-
 	// fmt.Printf("This is the test \n")
-	var threads, rows int
+	var threads, rows, loop int
 	var configFile string
-	var outputFile string
+	var outputFolder string
+        var fileName string
+
+        var dbConn TiDBLightningConn
 
 	rootCmd.PersistentFlags().IntVar(&threads, "threads", runtime.NumCPU(), "Threads to generate the data")
 	rootCmd.PersistentFlags().IntVar(&rows, "rows", 1, "Number of rows for each thread")
+	rootCmd.PersistentFlags().IntVar(&loop, "loop", 1, "TiDB Lightning loop")
 	rootCmd.PersistentFlags().StringVar((*string)(&configFile), "config", "", "Config file for data generattion")
-	rootCmd.PersistentFlags().StringVar((*string)(&outputFile), "output", "", "Output file for data generattion")
+	rootCmd.PersistentFlags().StringVar((*string)(&outputFolder), "output", "", "Output folder for data generattion")
+	rootCmd.PersistentFlags().StringVar((*string)(&fileName), "file-name", "", "file or table name for data generattion. For tidb lightning, please user schema_name.table_name.csv")
+
+	rootCmd.PersistentFlags().StringVar((*string)(&dbConn.TiDBHost), "host", "", "TiDB Host name")
+	rootCmd.PersistentFlags().IntVar(&dbConn.TiDBPort, "port", 4000, "TiDB Port")
+	rootCmd.PersistentFlags().StringVar((*string)(&dbConn.TiDBUser), "user", "root", "TiDB User")
+	rootCmd.PersistentFlags().StringVar((*string)(&dbConn.TiDBPassword), "password", "", "TiDB Password")
+	rootCmd.PersistentFlags().StringVar((*string)(&dbConn.PDIP), "pd-ip", "", "pd ip address")
+
 	rootCmd.Execute()
 	// fmt.Printf("The threads are %d \n", threads)
 	// fmt.Printf("The config file are %s \n", configFile)
 	// fmt.Printf("The config file are %s \n", outputFile)
+        fmt.Printf("The TiDB config info is <%#v> \n", dbConn)
+
 
 	yfile, err := ioutil.ReadFile(configFile)
 
@@ -98,34 +109,60 @@ func main() {
 	if err != nil {
 		log.Fatalf("error: %v", err)
 	}
-	//fmt.Printf("--- t:\n%v\n\n", mockDataConfig)
-	//fmt.Printf("The number of rows is <%d> \n", mockDataConfig.Rows)
-	// for _, _columnCfg := range mockDataConfig.Columns {
-	//     fmt.Printf("Column name is : %s and data type: %s, Function: %s, Max: %d, Min: %d \n", _columnCfg.Name, _columnCfg.DataType, _columnCfg.Function, _columnCfg.Min, _columnCfg.Max)
-	// }
-
-	re := regexp.MustCompile("(.*).csv")
-	retValue := re.FindStringSubmatch(outputFile)
-	fmt.Printf("The return value is %#v \n", retValue)
-	if len(retValue) == 0 {
-		fmt.Printf("Please input the output file like A.csv\n")
-		return
+        csvOutputFolder := outputFolder + "/data"
+	cmd := exec.Command("mkdir", "-p", csvOutputFolder )
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+            panic(err)
+            return
 	}
 
+        for _loop := 0; _loop < loop; _loop++  {
 	var waitGroup sync.WaitGroup
 	//errChan := make(chan error , 2)
 
+        fmt.Printf("The number thread is <%d> \n", threads)
 	for _idx := 0; _idx < threads; _idx++ {
 		waitGroup.Add(1)
 		go func(_index int) {
-			fmt.Printf("The index is <%d> \n", _index)
-			outputFile := fmt.Sprintf("%s%03d.csv", retValue[1], _index)
-			// fmt.Printf("Starting to call %s \n", fmt.Sprintf( "/tmp/temp%d.txt", rand.Intn(100)))
+			fmt.Printf("The index is <%d> \n", _index + _loop*threads)
+			//outputFile := fmt.Sprintf("%s%03d.csv", retValue[1], _index)
+
+                        // Make the folder to populate the data
+
+
+                        csvFile := fmt.Sprintf("%s/%s.%03d.csv", csvOutputFolder, fileName, _index)
+			GenerateDataTo(_index + _loop*threads, rows, mockDataConfig, csvFile)
+
 			defer waitGroup.Done()
-			GenerateDataTo(_index, rows, mockDataConfig, outputFile)
 		}(_idx)
 	}
+
 	waitGroup.Wait()
+
+        dbConn.DataFolder = csvOutputFolder
+        lightningConfigFile := fmt.Sprintf("%s/tidb-lightning.toml", outputFolder)
+        parseTemplate(dbConn, lightningConfigFile )
+	fmt.Printf("The file is <%s> \n", lightningConfigFile )
+	// fmt.Printf("Starting to call %s \n", fmt.Sprintf( "/tmp/temp%d.txt", rand.Intn(100)))
+	cmd = exec.Command("mockdata/bin/tidb-lightning", "--config", lightningConfigFile )
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+            panic(err)
+            return
+	}
+
+        csvOutputFolder := outputFolder + "/data"
+	cmd := exec.Command("rm", "-f", csvOutputFolder + "/*" )
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+            panic(err)
+            return
+	}
+     }
 }
 
 type RandomUserID struct {
@@ -367,21 +404,13 @@ func contains(s []string, str string) bool {
 	return false
 }
 
-func parseTemplate() {
-
-    var dbConn TiDBLightningConn
-    dbConn.TiDBHost = "tidb-host"
-    dbConn.TiDBPort = 4000
-    dbConn.TiDBUser = "root"
-    dbConn.TiDBPassword = "password"
-    dbConn.PDIP = 1111
-
+func parseTemplate(dbConn TiDBLightningConn, configFile string) {
     fmt.Printf("This is the testing data \n")
     data, err := embed.ReadTemplate("templates/tidb-lightning.toml.tpl")
     if err != nil {
         panic(err)
     }
-    fmt.Printf("This is the template %s \n",data)
+ //   fmt.Printf("This is the template %s \n",data)
 
     tmpl, err := template.New("").Parse(string(data))
     if err != nil {
@@ -390,6 +419,23 @@ func parseTemplate() {
 
     var ret bytes.Buffer
     err = tmpl.Execute(&ret, dbConn)
-    fmt.Printf("The data is %s \n", ret.String())
+//    fmt.Printf("The data is %s \n", ret.String())
+
+//    fo, err := os.Create("/tmp/tidb-lightning.toml")
+    fo, err := os.Create(configFile)
+    if err != nil {
+        panic(err)
+    }
+
+    // close fo on exit and check for its returned error
+    defer func() {
+        if err := fo.Close(); err != nil {
+            panic(err)
+        }
+    }()
+
+    if _, err := fo.Write(ret.Bytes()); err != nil {
+        panic(err)
+    }
 
 }
