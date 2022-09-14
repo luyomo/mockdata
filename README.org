@@ -1,3 +1,6 @@
+#+OPTIONS: \n:t
+* Background
+  [[https://www.mockaroo.com/][mockaroo]] is one very commerial tool for mock data generation. And I tried to use it even though it's one commerial one. But finally I gave it up because I need to big data import. Also found there is another open source [[https://generatedata.com/][generatedata]] which also generate data for you. The reason I did not decide to use it because I need one API not GUI. My idea I can generate the data and import to TiDB directly with tidb lightning.
 * Data config file
 #+BEGIN_SRC
 ROWS: 5000
@@ -68,3 +71,20 @@ COLUMNS:
 #+BEGIN_SRC
 go mod tidy
 #+END_SRC
+
+* Performance test
+#+BEGIN_SRC
+OhMyTiUP$ ./bin/mockdata --threads 16 --loop 1 --config etc/data.config.yaml --output /tmp/mockdata --file-name=test.test01 --rows 20  --host=172.83.1.89 --user=root --pd-ip=172.83.1.241
+#+END_SRC
+** c5d.4xlarge
+  | Number of rows | Execution time | Transaction | Threads | Size |
+  |----------------+----------------+-------------+---------+------|
+  | 160 millions   |             29 |      100000 |      16 | 14G  |
+  | 160 millions   |             23 |      100000 |      32 | 14G  |
+  | 160 millions   |             21 |      200000 |      32 | 14G  |
+
+** c5a.8xlarge
+  | Number of rows | Execution time | Transaction | Threads | Size |
+  |----------------+----------------+-------------+---------+------|
+  | 300 millions   |             27 |      200000 |      64 | 26G  |
+  | 610 millions   |             50 |      400000 |      64 | 53G  |
