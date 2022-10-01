@@ -10,7 +10,6 @@ import (
 	"log"
 	"math/rand"
 	"os"
-//	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -24,11 +23,10 @@ import (
 	"os/exec"
 
 	"errors"
-
-	//	"github.com/luyomo/mockdata/pkg/tui"
 	"github.com/spf13/cobra"
 
         "github.com/luyomo/mockdata/embed"
+	"github.com/google/uuid"
 )
 
 
@@ -56,6 +54,7 @@ type MockDataStructure struct {
 		Name       string `yaml:"Name"`
 		DataType   string `yaml:"DataType"`
 		Function   string `yaml:"Function"`
+		Values     []string `yaml:"Values"`
 		Max        int    `yaml:"Max"`
 		Min        int    `yaml:"Min"`
 		Parameters []struct {
@@ -95,6 +94,7 @@ func main() {
 	// fmt.Printf("The config file are %s \n", configFile)
 	// fmt.Printf("The config file are %s \n", outputFile)
         fmt.Printf("The TiDB config info is <%#v> \n", dbConn)
+
 
 
 	yfile, err := ioutil.ReadFile(configFile)
@@ -192,10 +192,13 @@ func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string
 	// Generate the string template instance
 
 	var mapTemplate = make(map[string]*template.Template)
+	var mapFunc = make(map[string]func()(string, error))
 
 	var mapGeneration = make(map[string]interface{})
 
+        // Define all the implementation here to improve the performance. Prepare the implementation only one time.
 	for _, column := range dataConfig.Columns {
+                // Define the function for template.
 		if column.Function == "template" {
 			var _min, _max int
 			var _format, _content string
@@ -230,6 +233,30 @@ func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string
 			userGenerate := RandomUserID{_min, _max, _format}
 			mapGeneration[column.Name] = &userGenerate
 		}
+
+                // Generate the random date between min and max
+                if column.Function == "RandomDate" {
+                    var _min, _max time.Time
+                    for _, _data := range column.Parameters {
+                        if _data.Key == "min" {
+                            _min, err = time.Parse("2006-01-02", _data.Value)
+                            if err != nil {
+                                panic(err)
+                                return err
+                            }
+                        }
+                        if _data.Key == "max" {
+                            _max, err = time.Parse("2006-01-02", _data.Value)
+                            if err != nil {
+                                return err
+                            }
+                        }
+                    }
+                    _days := int(_max.Sub(_min).Hours() / 24)
+                    mapFunc[column.Name] = func() (string, error) {
+                        return _min.AddDate(0, 0, rand.Intn(_days)).Format("2006-01-02"), nil
+                    }
+                }
 	}
 
 	for idx := 1; idx <= rows; idx++ {
@@ -240,12 +267,27 @@ func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string
 				_data = strconv.Itoa(threads*rows + idx)
 			}
 
+			if column.Function == "uuid" {
+				_data = uuid.New().String()
+			}
+
+			if column.Function == "list" {
+				_data = column.Values[rand.Intn(len(column.Values))]
+			}
+
 			if column.Function == "random" {
 				if column.DataType == "int" {
 					r2 := rand.New(s1)
 					_data = strconv.Itoa(r2.Intn(column.Max))
 				}
 			}
+
+                        if column.Function == "RandomDate" {
+                            _data, err = mapFunc[column.Name]()
+                            if err != nil{
+                                panic(err)
+                            }
+                        }
 
 			if column.Function == "template" {
 				userGenerate := mapGeneration[column.Name]

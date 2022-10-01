@@ -1,12 +1,10 @@
 ROWS: 5000
 COLUMNS:
-  - 
-    IDX: 01
+  - IDX: 01
     Name: id
     DataType: int
     Function: sequence
-  -
-    IDX: 02
+  - IDX: 02
     Name: payer
     DataType: string
     Function: template
@@ -21,8 +19,7 @@ COLUMNS:
         value: 10
       - key: format
         value: "%08d"
-  -
-    IDX: 03
+  - IDX: 03
     Name: receiver
     DataType: string
     Function: template
@@ -37,10 +34,30 @@ COLUMNS:
         value: 1000
       - key: format
         value: "%010d"
-  -
-    IDX: 04
+  - IDX: 04
     Name: amount
     DataType: int
     Function: random
     Max: 10000
     Min: 1
+  - IDX: 05
+    Name: payment_uuid
+    DataType: string
+    Function: uuid
+  - IDX: 06
+    Name: payment_type
+    DataType: string
+    Function: list
+    Values: 
+    - international
+    - national
+    - others
+  - IDX: 07
+    Name: payment_date
+    DataType: Date
+    Function: RandomDate
+    Parameters:
+      - key: min
+        value: 2022-01-01
+      - key: max
+        value: 2022-06-01
