@@ -1,34 +1,43 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
-	"fmt"
-	"gopkg.in/yaml.v3"
-	"html/template"
-	"io/ioutil"
-	"log"
-	"math/rand"
-	"os"
-	"runtime"
-	"strconv"
-	"strings"
-	"sync"
-	"time"
+    "bufio"
+    "bytes"
+    "fmt"
+    "gopkg.in/yaml.v3"
+    "html/template"
+    "io/ioutil"
+    "log"
+    "math/rand"
+    "os"
+    "runtime"
+    "strconv"
+    "strings"
+    "sync"
+    "time"
+    "regexp"
 
-	"archive/tar"
-	"compress/gzip"
-	"io"
+    "archive/tar"
+    "compress/gzip"
+    "io"
 
-	"os/exec"
+    "os/exec"
 
-	"errors"
-	"github.com/spf13/cobra"
+    "errors"
+    "github.com/spf13/cobra"
 
         "github.com/luyomo/mockdata/embed"
-	"github.com/google/uuid"
+    "github.com/google/uuid"
 )
 
+const (
+    // String
+    CHARSET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+)
+
+var (
+    BROWSER = [...]string{"Chrome", "IE", "Safari"}
+)
 
 type TiDBLightningConn struct {
     TiDBHost string
@@ -40,410 +49,495 @@ type TiDBLightningConn struct {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "mock",
-	Short: "Generate mock data",
-	Long:  `Generate mock data `,
-	Run: func(cmd *cobra.Command, args []string) {
-		// fmt.Printf("Hello world \n")
-	},
+    Use:   "mock",
+    Short: "Generate mock data",
+    Long:  `Generate mock data `,
+    Run: func(cmd *cobra.Command, args []string) {
+        // fmt.Printf("Hello world \n")
+    },
 }
 
 type MockDataStructure struct {
-	Columns []struct {
-		Idx        int    `yaml:"IDX"`
-		Name       string `yaml:"Name"`
-		DataType   string `yaml:"DataType"`
-		Function   string `yaml:"Function"`
-		Values     []string `yaml:"Values"`
-		Max        int    `yaml:"Max"`
-		Min        int    `yaml:"Min"`
-		Parameters []struct {
-			Key   string `yaml:"key"`
-			Value string `yaml:"value"`
-		} `yaml:"Parameters"`
-	} `yaml:"COLUMNS"`
-	Rows int `yaml:"ROWS"`
+    Columns []struct {
+        Idx        int    `yaml:"IDX"`
+        Name       string `yaml:"Name"`
+        DataType   string `yaml:"DataType"`
+        Function   string `yaml:"Function"`
+        Values     []string `yaml:"Values"`
+        Max        int    `yaml:"Max"`
+        Min        int    `yaml:"Min"`
+        Parameters []struct {
+            Key   string `yaml:"key"`
+            Value string `yaml:"value"`
+        } `yaml:"Parameters"`
+    } `yaml:"COLUMNS"`
+    Rows int `yaml:"ROWS"`
 }
 
 func main() {
-	InstallTiDBLightning()
+    // Install TiDB lightning locally
+    InstallTiDBLightning()
 
-	// fmt.Printf("This is the test \n")
-	var threads, rows, loop int
-	var configFile string
-	var outputFolder string
-        var fileName string
+    var threads, rows, loop int
+    var configFile string
+    var outputFolder string
+    var fileName string
 
-        var dbConn TiDBLightningConn
+    var dbConn TiDBLightningConn
 
-	rootCmd.PersistentFlags().IntVar(&threads, "threads", runtime.NumCPU(), "Threads to generate the data")
-	rootCmd.PersistentFlags().IntVar(&rows, "rows", 1, "Number of rows for each thread")
-	rootCmd.PersistentFlags().IntVar(&loop, "loop", 1, "TiDB Lightning loop")
-	rootCmd.PersistentFlags().StringVar((*string)(&configFile), "config", "", "Config file for data generattion")
-	rootCmd.PersistentFlags().StringVar((*string)(&outputFolder), "output", "", "Output folder for data generattion")
-	rootCmd.PersistentFlags().StringVar((*string)(&fileName), "file-name", "", "file or table name for data generattion. For tidb lightning, please user schema_name.table_name.csv")
+    // Set the arguments
+    rootCmd.PersistentFlags().IntVar(&threads, "threads", runtime.NumCPU(), "Threads to generate the data")
+    rootCmd.PersistentFlags().IntVar(&rows, "rows", 1, "Number of rows for each thread")
+    rootCmd.PersistentFlags().IntVar(&loop, "loop", 1, "TiDB Lightning loop")
+    rootCmd.PersistentFlags().StringVar((*string)(&configFile), "config", "", "Config file for data generattion")
+    rootCmd.PersistentFlags().StringVar((*string)(&outputFolder), "output", "", "Output folder for data generattion")
+    rootCmd.PersistentFlags().StringVar((*string)(&fileName), "file-name", "", "file or table name for data generattion. For tidb lightning, please user schema_name.table_name.csv")
 
-	rootCmd.PersistentFlags().StringVar((*string)(&dbConn.TiDBHost), "host", "", "TiDB Host name")
-	rootCmd.PersistentFlags().IntVar(&dbConn.TiDBPort, "port", 4000, "TiDB Port")
-	rootCmd.PersistentFlags().StringVar((*string)(&dbConn.TiDBUser), "user", "root", "TiDB User")
-	rootCmd.PersistentFlags().StringVar((*string)(&dbConn.TiDBPassword), "password", "", "TiDB Password")
-	rootCmd.PersistentFlags().StringVar((*string)(&dbConn.PDIP), "pd-ip", "", "pd ip address")
+    rootCmd.PersistentFlags().StringVar((*string)(&dbConn.TiDBHost), "host", "", "TiDB Host name")
+    rootCmd.PersistentFlags().IntVar(&dbConn.TiDBPort, "port", 4000, "TiDB Port")
+    rootCmd.PersistentFlags().StringVar((*string)(&dbConn.TiDBUser), "user", "root", "TiDB User")
+    rootCmd.PersistentFlags().StringVar((*string)(&dbConn.TiDBPassword), "password", "", "TiDB Password")
+    rootCmd.PersistentFlags().StringVar((*string)(&dbConn.PDIP), "pd-ip", "", "pd ip address")
 
-	rootCmd.Execute()
-	// fmt.Printf("The threads are %d \n", threads)
-	// fmt.Printf("The config file are %s \n", configFile)
-	// fmt.Printf("The config file are %s \n", outputFile)
-        fmt.Printf("The TiDB config info is <%#v> \n", dbConn)
+    rootCmd.Execute()
+    fmt.Printf("The TiDB config info is <%#v> \n", dbConn)
 
 
+    // Read the data config file. (example: etc/data.config.yaml)
+    yfile, err := ioutil.ReadFile(configFile)
 
-	yfile, err := ioutil.ReadFile(configFile)
+    if err != nil {
+        log.Fatal(err)
+    }
 
-	if err != nil {
-		log.Fatal(err)
-	}
+    var mockDataConfig MockDataStructure
 
-	var mockDataConfig MockDataStructure
+    err = yaml.Unmarshal([]byte(yfile), &mockDataConfig)
+    if err != nil {
+        log.Fatalf("error: %v", err)
+    }
 
-	err = yaml.Unmarshal([]byte(yfile), &mockDataConfig)
-	if err != nil {
-		log.Fatalf("error: %v", err)
-	}
-        csvOutputFolder := outputFolder + "/data"
-	cmd := exec.Command("mkdir", "-p", csvOutputFolder )
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
+    // Prepare the folder to keep the data
+    csvOutputFolder := outputFolder + "/data"
+    cmd := exec.Command("mkdir", "-p", csvOutputFolder )
+    cmd.Stdout = os.Stdout
+    cmd.Stderr = os.Stderr
+    if err := cmd.Run(); err != nil {
             panic(err)
             return
-	}
+    }
 
-        for _loop := 0; _loop < loop; _loop++  {
-	var waitGroup sync.WaitGroup
-	//errChan := make(chan error , 2)
+    for _loop := 0; _loop < loop; _loop++  {
+        var waitGroup sync.WaitGroup
+        //errChan := make(chan error , 2)
 
         fmt.Printf("The number thread is <%d> \n", threads)
-	for _idx := 0; _idx < threads; _idx++ {
-		waitGroup.Add(1)
-		go func(_index int) {
-			fmt.Printf("The index is <%d> \n", _index + _loop*threads)
-			//outputFile := fmt.Sprintf("%s%03d.csv", retValue[1], _index)
+        for _idx := 0; _idx < threads; _idx++ {
+            waitGroup.Add(1)
+            go func(_index int) {
+                fmt.Printf("The index is <%d> \n", _index + _loop*threads)
 
-                        // Make the folder to populate the data
+                csvFile := fmt.Sprintf("%s/%s.%03d.csv", csvOutputFolder, fileName, _index)
+                GenerateDataTo(_index + _loop*threads, rows, mockDataConfig, csvFile)
 
+                defer waitGroup.Done()
+            }(_idx)
+        }
 
-                        csvFile := fmt.Sprintf("%s/%s.%03d.csv", csvOutputFolder, fileName, _index)
-			GenerateDataTo(_index + _loop*threads, rows, mockDataConfig, csvFile)
-
-			defer waitGroup.Done()
-		}(_idx)
-	}
-
-	waitGroup.Wait()
+        waitGroup.Wait()
 
         dbConn.DataFolder = csvOutputFolder
         lightningConfigFile := fmt.Sprintf("%s/tidb-lightning.toml", outputFolder)
         parseTemplate(dbConn, lightningConfigFile )
-	fmt.Printf("The file is <%s> \n", lightningConfigFile )
-	// fmt.Printf("Starting to call %s \n", fmt.Sprintf( "/tmp/temp%d.txt", rand.Intn(100)))
-	cmd = exec.Command("mockdata/bin/tidb-lightning", "--config", lightningConfigFile )
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
+        fmt.Printf("The file is <%s> \n", lightningConfigFile )
+        // fmt.Printf("Starting to call %s \n", fmt.Sprintf( "/tmp/temp%d.txt", rand.Intn(100)))
+        cmd = exec.Command("mockdata/bin/tidb-lightning", "--config", lightningConfigFile )
+        cmd.Stdout = os.Stdout
+        cmd.Stderr = os.Stderr
+        if err := cmd.Run(); err != nil {
             panic(err)
             return
-	}
+        }
 
         csvOutputFolder := outputFolder + "/data"
-	cmd := exec.Command("rm", "-f", csvOutputFolder + "/*" )
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
+        cmd := exec.Command("rm", "-f", csvOutputFolder + "/*" )
+        cmd.Stdout = os.Stdout
+        cmd.Stderr = os.Stderr
+        if err := cmd.Run(); err != nil {
             panic(err)
             return
-	}
-     }
+        }
+    }
 }
 
 type RandomUserID struct {
-	min       int
-	max       int
-	MsgFormat string
+    min       int
+    max       int
+    MsgFormat string
 }
 
 func (p RandomUserID) GenerateData() string {
-	s1 := rand.NewSource(time.Now().UnixNano())
-	r2 := rand.New(s1)
-	_data := r2.Intn(p.max)
-	return fmt.Sprintf(p.MsgFormat, _data)
+    s1 := rand.NewSource(time.Now().UnixNano())
+    r2 := rand.New(s1)
+    _data := r2.Intn(p.max)
+    return fmt.Sprintf(p.MsgFormat, _data)
 }
 
 func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string) error {
-	// Prepare the file handle to output the data into
-	fFile, err := os.Create(file)
-	if err != nil {
-		log.Fatal(err)
-	}
-	writer := bufio.NewWriter(fFile)
+    // Prepare the file handle to output the data into
+    fFile, err := os.Create(file)
+    if err != nil {
+        log.Fatal(err)
+    }
+    writer := bufio.NewWriter(fFile)
 
-	// Generate the random number generation instance
-	s1 := rand.NewSource(time.Now().UnixNano())
+    // Generate the random number generation instance
+    s1 := rand.NewSource(time.Now().UnixNano())
 
-	// Generate the string template instance
+    // Generate the string template instance
 
-	var mapTemplate = make(map[string]*template.Template)
-	var mapFunc = make(map[string]func()(string, error))
+    var mapTemplate = make(map[string]*template.Template)
+    var mapFunc = make(map[string]func()(string, error))
+    var mapFuncs = make(map[string]map[string]func()(string, error))
 
-	var mapGeneration = make(map[string]interface{})
+    var mapGeneration = make(map[string]interface{})
 
-        // Define all the implementation here to improve the performance. Prepare the implementation only one time.
-	for _, column := range dataConfig.Columns {
-                // Define the function for template.
-		if column.Function == "template" {
-			var _min, _max int
-			var _format, _content string
-			for _, _data := range column.Parameters {
-				if _data.Key == "min" {
-					_min, err = strconv.Atoi(_data.Value)
-					if err != nil {
-						return err
-					}
-				}
-				if _data.Key == "max" {
-					_max, err = strconv.Atoi(_data.Value)
-					if err != nil {
-						return err
-					}
-				}
-				if _data.Key == "format" {
-					_format = _data.Value
-				}
-				if _data.Key == "content" {
-					_content = _data.Value
-				}
-			}
-
-			tmpl, err := template.New("").Parse(_content)
-
-			if err != nil {
-				log.Fatalf("Parse: %v", err)
-			}
-			mapTemplate[column.Name] = tmpl
-
-			userGenerate := RandomUserID{_min, _max, _format}
-			mapGeneration[column.Name] = &userGenerate
-		}
-
-                // Generate the random date between min and max
-                if column.Function == "RandomDate" {
-                    var _min, _max time.Time
-                    for _, _data := range column.Parameters {
-                        if _data.Key == "min" {
-                            _min, err = time.Parse("2006-01-02", _data.Value)
-                            if err != nil {
-                                panic(err)
-                                return err
-                            }
-                        }
-                        if _data.Key == "max" {
-                            _max, err = time.Parse("2006-01-02", _data.Value)
-                            if err != nil {
-                                return err
-                            }
-                        }
-                    }
-                    _days := int(_max.Sub(_min).Hours() / 24)
-                    mapFunc[column.Name] = func() (string, error) {
-                        return _min.AddDate(0, 0, rand.Intn(_days)).Format("2006-01-02"), nil
+    // Define all the implementation here to improve the performance. Prepare the implementation only one time.
+    for _, column := range dataConfig.Columns {
+        // Define the function for template.
+        if column.Function == "template" {
+            var _min, _max int
+            var _format, _content string
+            for _, _data := range column.Parameters {
+                if _data.Key == "min" {
+                    _min, err = strconv.Atoi(_data.Value)
+                    if err != nil {
+                        return err
                     }
                 }
-	}
+                if _data.Key == "max" {
+                    _max, err = strconv.Atoi(_data.Value)
+                    if err != nil {
+                        return err
+                    }
+                }
+                if _data.Key == "format" {
+                    _format = _data.Value
+                }
+                if _data.Key == "content" {
+                    _content = _data.Value
+                }
+            }
 
-	for idx := 1; idx <= rows; idx++ {
-		var arrData []string
-		for _, column := range dataConfig.Columns {
-			var _data string
-			if column.Function == "sequence" {
-				_data = strconv.Itoa(threads*rows + idx)
-			}
+            tmpl, err := template.New("").Parse(_content)
 
-			if column.Function == "uuid" {
-				_data = uuid.New().String()
-			}
+            if err != nil {
+                log.Fatalf("Parse: %v", err)
+            }
+            mapTemplate[column.Name] = tmpl
 
-			if column.Function == "list" {
-				_data = column.Values[rand.Intn(len(column.Values))]
-			}
+            userGenerate := RandomUserID{_min, _max, _format}
 
-			if column.Function == "random" {
-				if column.DataType == "int" {
-					r2 := rand.New(s1)
-					_data = strconv.Itoa(r2.Intn(column.Max))
-				}
-			}
+            mapGeneration[column.Name] = &userGenerate
+        }
 
-                        if column.Function == "RandomDate" {
-                            _data, err = mapFunc[column.Name]()
-                            if err != nil{
-                                panic(err)
-                            }
+        if column.Function == "Template" {
+            var _content string
+            for _, _data := range column.Parameters {
+                if _data.Key == "content" {
+                    _content = _data.Value
+                }
+            }
+            // 1. Get the #IPADDR
+            re := regexp.MustCompile("(?U){{\\$(.*)}}")
+            ret := re.FindAllStringSubmatch(_content, -1)
+            fmt.Printf("The result is %#v \n", ret)
+
+            var _mapFunc = make(map[string]func()(string, error))
+            _mapFunc["BROWSER"] = func()(string, error){
+                    _value := BROWSER[rand.Intn(len(BROWSER))]
+                    return _value, nil
+                }
+            _mapFunc["IPADDR"] = func()(string, error){
+                    _value := fmt.Sprintf("%d.%d.%d.%d", 1+rand.Intn(254),rand.Intn(255), rand.Intn(255),rand.Intn(255)  )
+                    return _value, nil
+                }
+            mapFuncs[column.Name] = _mapFunc
+
+            for _ , _match := range ret {
+                _content = strings.Replace(_content, _match[0], fmt.Sprintf("{{ index .Data \"%s\"}}", _match[1]), -1 )
+            }
+            tmpl, err := template.New("").Parse(_content)
+            if err != nil {
+                log.Fatalf("Parse: %v", err)
+            }
+            mapTemplate[column.Name] = tmpl
+        }
+
+        // Generate the random date between min and max
+        if column.Function == "RandomDate" {
+           var _min, _max time.Time
+           for _, _data := range column.Parameters {
+               if _data.Key == "min" {
+                   _min, err = time.Parse("2006-01-02", _data.Value)
+                   if err != nil {
+                       panic(err)
+                       return err
+                   }
+               }
+               if _data.Key == "max" {
+                   _max, err = time.Parse("2006-01-02", _data.Value)
+                   if err != nil {
+                       return err
+                   }
+               }
+           }
+           _days := int(_max.Sub(_min).Hours() / 24)
+           mapFunc[column.Name] = func() (string, error) {
+               return _min.AddDate(0, 0, rand.Intn(_days)).Format("2006-01-02"), nil
+           }
+       }
+    }
+
+    for idx := 1; idx <= rows; idx++ {
+        var arrData []string
+        for _, column := range dataConfig.Columns {
+            var _data string
+            if column.Function == "sequence" {
+                _data = strconv.Itoa(threads*rows + idx)
+            }
+
+            if column.Function == "uuid" {
+                _data = uuid.New().String()
+            }
+
+            if column.Function == "list" {
+                _data = column.Values[rand.Intn(len(column.Values))]
+            }
+
+            if column.Function == "random" {
+                if column.DataType == "int" {
+                    r2 := rand.New(s1)
+                    _data = strconv.Itoa(r2.Intn(column.Max))
+                }
+            }
+
+            if column.Function == "RandomDate" {
+                 _data, err = mapFunc[column.Name]()
+                 if err != nil{
+                     panic(err)
+                 }
+            }
+
+            if column.Function == "RandomString" {
+                var _min, _max int
+                for _, _p := range column.Parameters {
+                    if _p.Key == "min" {
+                        _min, err = strconv.Atoi(_p.Value)
+                        if err != nil {
+                            return err
                         }
+                    }
+                    if _p.Key == "max" {
+                        _max, err = strconv.Atoi(_p.Value)
+                        if err != nil {
+                            return err
+                        }
+                    }
+                }
+                rand.Seed(time.Now().UnixNano())
 
-			if column.Function == "template" {
-				userGenerate := mapGeneration[column.Name]
+                // Getting random character
+                _data = ""
+                for _idx := 0; _idx < _min + rand.Intn(_max - _min + 1) ; _idx++ {
+                    c := CHARSET[rand.Intn(len(CHARSET))]
+                    _data += string(c)
+                }
+            }
 
-				tmpl := mapTemplate[column.Name]
-				var test bytes.Buffer
-				tmpl.Execute(&test, userGenerate)
-				_data = test.String()
-			}
+            if column.Function == "template" {
+                userGenerate := mapGeneration[column.Name]
 
-			if column.DataType != "int" {
-				_data = "\"" + _data + "\""
-			}
+                tmpl := mapTemplate[column.Name]
+                var test bytes.Buffer
+                tmpl.Execute(&test, userGenerate)
+                _data = test.String()
+            }
 
-			arrData = append(arrData, _data)
-		}
-		//fmt.Printf("The data is <%#v> and <%s> \n", arrData, strings.Join(arrData, ","))
-		_, err := writer.WriteString(strings.Join(arrData, ",") + "\n")
-		if err != nil {
-			return err
-		}
-	}
-	writer.Flush()
-	return nil
+            if column.Function == "Template" {
+                type TplData struct {
+                    Data map[string]string
+                }
+                var mapParams = make(map[string]string)
+
+                _funcs := mapFuncs[column.Name]
+                for _key, _func := range _funcs {
+                    _value, err := _func()
+                    if err != nil {
+                        return err
+                    }
+                    mapParams[_key] = _value
+//                    fmt.Printf("The key: <%#v>, value: <%#v>", _key, _func)
+                }
+
+                // mapParams["IPADDR"] = "192.168.1.2"
+                // mapParams["BROWSER"] = "Chrome"
+                var tplData TplData
+                tplData.Data = mapParams
+
+                tmpl := mapTemplate[column.Name]
+                var test bytes.Buffer
+                tmpl.Execute(&test, tplData)
+                _data = strings.Replace(test.String(), "\"", "\\\"", -1)
+                fmt.Printf("The replaced data is : %s \n", _data)
+            }
+
+            if column.DataType != "int" {
+                _data = "\"" + _data + "\""
+            }
+
+            arrData = append(arrData, _data)
+        }
+        //fmt.Printf("The data is <%#v> and <%s> \n", arrData, strings.Join(arrData, ","))
+        _, err := writer.WriteString(strings.Join(arrData, ",") + "\n")
+        if err != nil {
+            return err
+        }
+    }
+    writer.Flush()
+    return nil
 }
 
 func InstallTiDBLightning() error {
-	if runtime.GOOS == "windows" {
-		fmt.Println("Can't Execute this on a windows machine")
-	} else {
+    if runtime.GOOS == "windows" {
+        fmt.Println("Can't Execute this on a windows machine")
+    } else {
                 fmt.Printf("Starting to check the data \n")
-		if _, err := os.Stat("mockdata/bin/tidb-lightning"); errors.Is(err, os.ErrNotExist) {
-			// file does not exist
+        if _, err := os.Stat("mockdata/bin/tidb-lightning"); errors.Is(err, os.ErrNotExist) {
+            // file does not exist
                         fmt.Printf("Started to check mockdata \n")
 
-			fmt.Printf("The os is <%s> \n", runtime.GOOS)
-			fmt.Printf("The os is <%s> \n", runtime.GOARCH)
-			binFile := fmt.Sprintf("tidb-community-toolkit-%s-linux-%s.tar.gz", "v6.2.0", runtime.GOARCH)
-			fullBinFile := fmt.Sprintf("tidb-community-toolkit-%s-linux-%s/tidb-lightning-%s-linux-%s.tar.gz", "v6.2.0", runtime.GOARCH, "v6.2.0", runtime.GOARCH)
+            fmt.Printf("The os is <%s> \n", runtime.GOOS)
+            fmt.Printf("The os is <%s> \n", runtime.GOARCH)
+            binFile := fmt.Sprintf("tidb-community-toolkit-%s-linux-%s.tar.gz", "v6.2.0", runtime.GOARCH)
+            fullBinFile := fmt.Sprintf("tidb-community-toolkit-%s-linux-%s/tidb-lightning-%s-linux-%s.tar.gz", "v6.2.0", runtime.GOARCH, "v6.2.0", runtime.GOARCH)
 
-			cmd := exec.Command("wget", "https://download.pingcap.org/"+binFile, "-O", "/tmp/"+binFile)
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			if err := cmd.Run(); err != nil {
-				return err
-			}
+            cmd := exec.Command("wget", "https://download.pingcap.org/"+binFile, "-O", "/tmp/"+binFile)
+            cmd.Stdout = os.Stdout
+            cmd.Stderr = os.Stderr
+            if err := cmd.Run(); err != nil {
+                return err
+            }
 
-			r, err := os.Open("/tmp/" + binFile)
-			if err != nil {
-				fmt.Println("error")
-			}
-			ExtractTarGz(r, []string{fullBinFile})
+            r, err := os.Open("/tmp/" + binFile)
+            if err != nil {
+                fmt.Println("error")
+            }
+            ExtractTarGz(r, []string{fullBinFile})
 
-			cmd = exec.Command("rm", "-rf", "/tmp/"+binFile)
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			if err := cmd.Run(); err != nil {
-				return err
-			}
+            cmd = exec.Command("rm", "-rf", "/tmp/"+binFile)
+            cmd.Stdout = os.Stdout
+            cmd.Stderr = os.Stderr
+            if err := cmd.Run(); err != nil {
+                return err
+            }
 
-			r, err = os.Open(fmt.Sprintf("tidb-community-toolkit-%s-linux-%s/tidb-lightning-%s-linux-%s.tar.gz", "v6.2.0", runtime.GOARCH, "v6.2.0", runtime.GOARCH  ))
-			if err != nil {
-				fmt.Println("error")
-			}
-			ExtractTarGz(r, []string{"tidb-lightning"})
+            r, err = os.Open(fmt.Sprintf("tidb-community-toolkit-%s-linux-%s/tidb-lightning-%s-linux-%s.tar.gz", "v6.2.0", runtime.GOARCH, "v6.2.0", runtime.GOARCH  ))
+            if err != nil {
+                fmt.Println("error")
+            }
+            ExtractTarGz(r, []string{"tidb-lightning"})
 
-			cmd = exec.Command("mkdir", "-p", "mockdata/bin")
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			if err := cmd.Run(); err != nil {
-				return err
-			}
+            cmd = exec.Command("mkdir", "-p", "mockdata/bin")
+            cmd.Stdout = os.Stdout
+            cmd.Stderr = os.Stderr
+            if err := cmd.Run(); err != nil {
+                return err
+            }
 
-			cmd = exec.Command("mv", "tidb-lightning", "mockdata/bin/")
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			if err := cmd.Run(); err != nil {
-				return err
-			}
+            cmd = exec.Command("mv", "tidb-lightning", "mockdata/bin/")
+            cmd.Stdout = os.Stdout
+            cmd.Stderr = os.Stderr
+            if err := cmd.Run(); err != nil {
+                return err
+            }
 
-			cmd = exec.Command("chmod", "755", "mockdata/bin/tidb-lightning")
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			if err := cmd.Run(); err != nil {
-				return err
-			}
+            cmd = exec.Command("chmod", "755", "mockdata/bin/tidb-lightning")
+            cmd.Stdout = os.Stdout
+            cmd.Stderr = os.Stderr
+            if err := cmd.Run(); err != nil {
+                return err
+            }
 
-			cmd = exec.Command("rm", "-rf", fmt.Sprintf("tidb-community-toolkit-%s-linux-%s", "v6.2.0", runtime.GOARCH))
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			if err := cmd.Run(); err != nil {
-				return err
-			}
-		}
+            cmd = exec.Command("rm", "-rf", fmt.Sprintf("tidb-community-toolkit-%s-linux-%s", "v6.2.0", runtime.GOARCH))
+            cmd.Stdout = os.Stdout
+            cmd.Stderr = os.Stderr
+            if err := cmd.Run(); err != nil {
+                return err
+            }
+        }
                 fmt.Print("Completed the file check \n")
-	}
-	return nil
+    }
+    return nil
 }
 
 func ExtractTarGz(gzipStream io.Reader, files []string) {
-	uncompressedStream, err := gzip.NewReader(gzipStream)
-	if err != nil {
-		fmt.Printf("The error is <%#v>", err)
-		log.Fatal("ExtractTarGz: NewReader failed")
-	}
+    uncompressedStream, err := gzip.NewReader(gzipStream)
+    if err != nil {
+        fmt.Printf("The error is <%#v>", err)
+        log.Fatal("ExtractTarGz: NewReader failed")
+    }
 
-	tarReader := tar.NewReader(uncompressedStream)
+    tarReader := tar.NewReader(uncompressedStream)
 
-	for true {
-		header, err := tarReader.Next()
+    for true {
+        header, err := tarReader.Next()
 
-		if err == io.EOF {
-			break
-		}
+        if err == io.EOF {
+            break
+        }
 
-		if err != nil {
-			log.Fatalf("ExtractTarGz: Next() failed: %s", err.Error())
-		}
+        if err != nil {
+            log.Fatalf("ExtractTarGz: Next() failed: %s", err.Error())
+        }
 
-		switch header.Typeflag {
-		case tar.TypeDir:
-			fmt.Printf("The folder name is %s \n", header.Name)
-			if err := os.Mkdir(header.Name, 0755); err != nil {
-				log.Fatalf("ExtractTarGz: Mkdir() failed: %s", err.Error())
-			}
-		case tar.TypeReg:
-			fmt.Printf("The file name is %s \n", header.Name)
-			if contains(files, header.Name) {
-				outFile, err := os.Create(header.Name)
-				if err != nil {
-					log.Fatalf("ExtractTarGz: Create() failed: %s", err.Error())
-				}
-				if _, err := io.Copy(outFile, tarReader); err != nil {
-					log.Fatalf("ExtractTarGz: Copy() failed: %s", err.Error())
-				}
-				outFile.Close()
-			}
+        switch header.Typeflag {
+        case tar.TypeDir:
+            fmt.Printf("The folder name is %s \n", header.Name)
+            if err := os.Mkdir(header.Name, 0755); err != nil {
+                log.Fatalf("ExtractTarGz: Mkdir() failed: %s", err.Error())
+            }
+        case tar.TypeReg:
+            fmt.Printf("The file name is %s \n", header.Name)
+            if contains(files, header.Name) {
+                outFile, err := os.Create(header.Name)
+                if err != nil {
+                    log.Fatalf("ExtractTarGz: Create() failed: %s", err.Error())
+                }
+                if _, err := io.Copy(outFile, tarReader); err != nil {
+                    log.Fatalf("ExtractTarGz: Copy() failed: %s", err.Error())
+                }
+                outFile.Close()
+            }
 
-		default:
-			log.Fatalf(
-				"ExtractTarGz: uknown type: %s in %s",
-				header.Typeflag,
-				header.Name)
-		}
+        default:
+            log.Fatalf(
+                "ExtractTarGz: uknown type: %s in %s",
+                header.Typeflag,
+                header.Name)
+        }
 
-	}
+    }
 }
 
 func contains(s []string, str string) bool {
-	for _, v := range s {
-		if v == str {
-			return true
-		}
-	}
+    for _, v := range s {
+        if v == str {
+            return true
+        }
+    }
 
-	return false
+    return false
 }
 
 func parseTemplate(dbConn TiDBLightningConn, configFile string) {

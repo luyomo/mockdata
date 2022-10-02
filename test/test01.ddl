@@ -6,5 +6,7 @@ CREATE TABLE `test01` (
   `payment_uuid` varchar(64) DEFAULT NULL,
   `payment_type` varchar(32) DEFAULT NULL,
   `payment_date` date DEFAULT NULL,
+  `user_id` varchar(32) DEFAULT NULL,
+  `access_content` json DEFAULT NULL,
   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin

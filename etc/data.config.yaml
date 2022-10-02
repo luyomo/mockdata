@@ -61,3 +61,22 @@ COLUMNS:
         value: 2022-01-01
       - key: max
         value: 2022-06-01
+  - IDX: 08
+    Name: user_id
+    DataType: string
+    Function: RandomString
+    Parameters:
+      - key: min
+        value: 6
+      - key: max
+        value: 8
+  - IDX: 09
+    Name: access_content
+    DataType: json
+    Function: Template
+    Parameters:
+      - key: content
+        value: '{"access_type": "{{$BROWSER}}", "ip_address": "{{$IPADDR}}"}'
+        #value: '{"access_type": "chrome", "ip_address": "{{ index .Data "$IPADDR"}}"}'
+      - key: $IPADDR                    # Function: Starting with #
+        value: 192.168.1.1
