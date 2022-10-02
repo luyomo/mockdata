@@ -2,16 +2,16 @@
 * Background
   [[https://www.mockaroo.com/][mockaroo]] is one very commerial tool for mock data generation. And I tried to use it even though it's one commerial one. But finally I gave it up because I need to big data import. Also found there is another open source [[https://generatedata.com/][generatedata]] which also generate data for you. The reason I did not decide to use it because I need one API not GUI. My idea I can generate the data and import to TiDB directly with tidb lightning.
 * Support function
-** ID
+ + ID
    ID sequence, primary key.
-** String template
+ + String template
    String from template
-** uuid
-** Data from string list
-** Random int
-** Random date
-** Random string
-** Json data
+ + uuid
+ + Data from string list
+ + Random int
+ + Random date
+ + Random string
+ + Json data
    The json is generated from the template in which defined function generate the data for json. The idea is from [[https://json-generator.com/][json generate]]. Will continue to add more and more functions.
 * DDL
   #+BEGIN_SRC
