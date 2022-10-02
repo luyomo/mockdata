@@ -100,7 +100,7 @@ func main() {
     rootCmd.PersistentFlags().StringVar((*string)(&dbConn.PDIP), "pd-ip", "", "pd ip address")
 
     rootCmd.Execute()
-    fmt.Printf("The TiDB config info is <%#v> \n", dbConn)
+    //fmt.Printf("The TiDB config info is <%#v> \n", dbConn)
 
 
     // Read the data config file. (example: etc/data.config.yaml)
@@ -131,11 +131,11 @@ func main() {
         var waitGroup sync.WaitGroup
         //errChan := make(chan error , 2)
 
-        fmt.Printf("The number thread is <%d> \n", threads)
+        // fmt.Printf("The number thread is <%d> \n", threads)
         for _idx := 0; _idx < threads; _idx++ {
             waitGroup.Add(1)
             go func(_index int) {
-                fmt.Printf("The index is <%d> \n", _index + _loop*threads)
+                // fmt.Printf("The index is <%d> \n", _index + _loop*threads)
 
                 csvFile := fmt.Sprintf("%s/%s.%03d.csv", csvOutputFolder, fileName, _index)
                 GenerateDataTo(_index + _loop*threads, rows, mockDataConfig, csvFile)
@@ -149,7 +149,7 @@ func main() {
         dbConn.DataFolder = csvOutputFolder
         lightningConfigFile := fmt.Sprintf("%s/tidb-lightning.toml", outputFolder)
         parseTemplate(dbConn, lightningConfigFile )
-        fmt.Printf("The file is <%s> \n", lightningConfigFile )
+        // fmt.Printf("The file is <%s> \n", lightningConfigFile )
         // fmt.Printf("Starting to call %s \n", fmt.Sprintf( "/tmp/temp%d.txt", rand.Intn(100)))
         cmd = exec.Command("mockdata/bin/tidb-lightning", "--config", lightningConfigFile )
         cmd.Stdout = os.Stdout
@@ -251,7 +251,7 @@ func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string
             // 1. Get the #IPADDR
             re := regexp.MustCompile("(?U){{\\$(.*)}}")
             ret := re.FindAllStringSubmatch(_content, -1)
-            fmt.Printf("The result is %#v \n", ret)
+            // fmt.Printf("The result is %#v \n", ret)
 
             var _mapFunc = make(map[string]func()(string, error))
             _mapFunc["BROWSER"] = func()(string, error){
@@ -389,7 +389,6 @@ func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string
                 var test bytes.Buffer
                 tmpl.Execute(&test, tplData)
                 _data = strings.Replace(test.String(), "\"", "\\\"", -1)
-                fmt.Printf("The replaced data is : %s \n", _data)
             }
 
             if column.DataType != "int" {
@@ -412,13 +411,13 @@ func InstallTiDBLightning() error {
     if runtime.GOOS == "windows" {
         fmt.Println("Can't Execute this on a windows machine")
     } else {
-                fmt.Printf("Starting to check the data \n")
+                // fmt.Printf("Starting to check the data \n")
         if _, err := os.Stat("mockdata/bin/tidb-lightning"); errors.Is(err, os.ErrNotExist) {
             // file does not exist
-                        fmt.Printf("Started to check mockdata \n")
+                        // fmt.Printf("Started to check mockdata \n")
 
-            fmt.Printf("The os is <%s> \n", runtime.GOOS)
-            fmt.Printf("The os is <%s> \n", runtime.GOARCH)
+            // fmt.Printf("The os is <%s> \n", runtime.GOOS)
+            // fmt.Printf("The os is <%s> \n", runtime.GOARCH)
             binFile := fmt.Sprintf("tidb-community-toolkit-%s-linux-%s.tar.gz", "v6.2.0", runtime.GOARCH)
             fullBinFile := fmt.Sprintf("tidb-community-toolkit-%s-linux-%s/tidb-lightning-%s-linux-%s.tar.gz", "v6.2.0", runtime.GOARCH, "v6.2.0", runtime.GOARCH)
 
@@ -476,7 +475,7 @@ func InstallTiDBLightning() error {
                 return err
             }
         }
-                fmt.Print("Completed the file check \n")
+                // fmt.Print("Completed the file check \n")
     }
     return nil
 }
@@ -541,7 +540,7 @@ func contains(s []string, str string) bool {
 }
 
 func parseTemplate(dbConn TiDBLightningConn, configFile string) {
-    fmt.Printf("This is the testing data \n")
+//    fmt.Printf("This is the testing data \n")
     data, err := embed.ReadTemplate("templates/tidb-lightning.toml.tpl")
     if err != nil {
         panic(err)
