@@ -77,6 +77,3 @@ COLUMNS:
     Parameters:
       - key: content
         value: '{"access_type": "{{$BROWSER}}", "ip_address": "{{$IPADDR}}"}'
-        #value: '{"access_type": "chrome", "ip_address": "{{ index .Data "$IPADDR"}}"}'
-      - key: $IPADDR                    # Function: Starting with #
-        value: 192.168.1.1
