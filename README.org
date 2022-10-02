@@ -116,6 +116,11 @@ COLUMNS:
   [[./png/001.png]]
   [[./png/002.png]]
 
+* Example
+** Run the mockdata command
+  [[./png/003.png]]
+** Check the result
+ [[./png/004.png]]
 * Performance
   | Secnario                 | Data volume | Disk Size | Execution Time(s) | rows/s | Volumes/s |
   |--------------------------+-------------+-----------+-------------------+--------+-----------|
@@ -123,11 +128,6 @@ COLUMNS:
   | parallel: 2              |    10000000 | 446M      |               140 |  77600 | 3.4MB     |
   | parallel: 10             |    50000000 | 2.3G      |               240 | 208000 | 9.8MB     |
   | parallel: 16             |    80000000 | 3.5G      |               433 | 184757 | 8.2MB     |
-
-
-* TODO
-  + Add the TUI from OhMyTiUP To mockdata
-    
 
 * Reference
 ** Issues
@@ -156,3 +156,4 @@ OhMyTiUP$ ./bin/mockdata --threads 16 --loop 1 --config etc/data.config.yaml --o
 * TODO
 ** Convert the data generation to distribution system to fasten the performance.
 ** Generate data to ttl directly for tikv-importer to improve the performance.
+** Add the TUI from OhMyTiUP To mockdata
