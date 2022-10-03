@@ -1,0 +1,64 @@
+ROWS: 5000
+COLUMNS:
+  - IDX: 01
+    Name: event_hash
+    DataType: string
+    Function: uuid
+  - IDX: 02
+    Name: sync_date
+    DataType: Date
+    Function: RandomDate
+    Parameters:
+      - key: min
+        value: 2022-01-01
+      - key: max
+        value: 2022-10-01
+  - IDX: 03
+    Name: event_name
+    DataType: string
+    Function: list
+    Values: 
+    - view
+    - click
+  - IDX: 04
+    Name: visitor_id
+    DataType: string
+    Function: RandomString
+    Parameters:
+      - key: min
+        value: 6
+      - key: max
+        value: 8
+  - IDX: 05
+    Name: pv_id
+    DataType: string
+    Function: uuid
+  - IDX: 06
+    Name: live_session_id
+    DataType: string
+    Function: uuid
+  - IDX: 07
+    Name: live_session_id
+    DataType: string
+    Function: uuid
+  - IDX: 08
+    Name: access_content
+    DataType: json
+    Function: Template
+    Parameters:
+      - key: content
+        value: '{"view": {"_source": "web", "access": {"browser": {"all": "Chrome/{{$IPADDR}}", "major": "90", "name": "Chrome", "version": "90.0.4430.93"}, "device": {}, "engine": {"name": "Blink", "version": "90.0.4430.93"}, "in_referrer": {"anchor": "", "host": "admin.karte.io", "path": "/p/61b1c8547df7d0001a33f7fa/user", "protocol": "https", "query": "type=realtime", "queryKey": {"type": "realtime"}, "url": "https://admin.karte.io/p/61b1c8547df7d0001a33f7fa/user"}, "ip_address": "{{$IPADDR}}", "language": "ja", "os": {"all": "Windows/10", "name": "Windows", "version": "10"}, "screen": {"availHeight": 834, "availLeft": 0, "availTop": 0, "availWidth": 1536, "colorDepth": 24, "height": 864, "pixelDepth": 24, "width": 1536}, "title": "- ****** - KARTE", "uri": {"anchor": "", "host": "admin.karte.io", "path": "/p/61b1c8547df7d0001a33f7fa/service/setting", "protocol": "https", "query": "", "queryKey": {}, "url": "https://admin.karte.io/p/61b1c8547df7d0001a33f7fa/service/setting"}, "user-agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36"}, "auto_page_group": "top", "date": 1662699697, "page_group": "5c1b61004c8a2608c3eacee1", "session": {"is_new_session": false, "session_id#session": "901b97e3-d026-3cc2-96c2-4e337e84cafd", "session_last_date": {"901b97e3-d026-3cc2-96c2-4e337e84cafd": 1662699697}, "session_last_time": 1662699697859, "session_spend_time": {"901b97e3-d026-3cc2-96c2-4e337e84cafd": 0}, "session_view_count": {"901b97e3-d026-3cc2-96c2-4e337e84cafd": 1}}, "visitor_id": "MrMgPB0r"}}'
+  - IDX: 09
+    Name: dimension
+    DataType: text
+    Function: Template
+    Parameters:
+      - key: content
+        value: '{"event_hash":"{{$UUID}}","visit_count":"{{$RandomInt}}","device_type": "pc"}'
+  - IDX: 10
+    Name: defined_events
+    DataType: text
+    Function: Template
+    Parameters:
+      - key: content
+        value: '["{{$RandomHex}}"]'

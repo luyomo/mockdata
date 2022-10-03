@@ -16,6 +16,7 @@ import (
     "sync"
     "time"
     "regexp"
+    "encoding/hex"
 
     "archive/tar"
     "compress/gzip"
@@ -26,7 +27,7 @@ import (
     "errors"
     "github.com/spf13/cobra"
 
-        "github.com/luyomo/mockdata/embed"
+    "github.com/luyomo/mockdata/embed"
     "github.com/google/uuid"
 )
 
@@ -74,6 +75,8 @@ type MockDataStructure struct {
     Rows int `yaml:"ROWS"`
 }
 
+var MAPFunc = make(map[string]func()(string, error))
+
 func main() {
     // Install TiDB lightning locally
     InstallTiDBLightning()
@@ -84,6 +87,42 @@ func main() {
     var fileName string
 
     var dbConn TiDBLightningConn
+
+    MAPFunc["BROWSER"] = func()(string, error){
+        _value := BROWSER[rand.Intn(len(BROWSER))]
+        return _value, nil
+    }
+
+    MAPFunc["IPADDR"] = func()(string, error){
+        _value := fmt.Sprintf("%d.%d.%d.%d", 1+rand.Intn(254),rand.Intn(255), rand.Intn(255),rand.Intn(255)  )
+        return _value, nil
+    }
+
+    MAPFunc["UUID"] = func()(string, error){
+        return uuid.New().String(), nil
+    }
+
+    MAPFunc["RandomInt"] = func()(string, error){
+        s1 := rand.NewSource(time.Now().UnixNano())
+        r2 := rand.New(s1)
+        _data := strconv.Itoa(r2.Intn(100))
+        return _data, nil
+    }
+
+    MAPFunc["RandomHex"] = func()(string, error){
+        rand.Seed(time.Now().UnixNano())
+
+        // Getting random character
+	_data := ""
+        for _idx := 0; _idx < 10 ; _idx++ {
+            c := CHARSET[rand.Intn(len(CHARSET))]
+            _data += string(c)
+        }
+
+	return hex.EncodeToString([]byte(_data)), nil
+    }
+
+    //
 
     // Set the arguments
     rootCmd.PersistentFlags().IntVar(&threads, "threads", runtime.NumCPU(), "Threads to generate the data")
@@ -254,19 +293,15 @@ func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string
             // fmt.Printf("The result is %#v \n", ret)
 
             var _mapFunc = make(map[string]func()(string, error))
-            _mapFunc["BROWSER"] = func()(string, error){
-                    _value := BROWSER[rand.Intn(len(BROWSER))]
-                    return _value, nil
-                }
-            _mapFunc["IPADDR"] = func()(string, error){
-                    _value := fmt.Sprintf("%d.%d.%d.%d", 1+rand.Intn(254),rand.Intn(255), rand.Intn(255),rand.Intn(255)  )
-                    return _value, nil
-                }
-            mapFuncs[column.Name] = _mapFunc
 
             for _ , _match := range ret {
                 _content = strings.Replace(_content, _match[0], fmt.Sprintf("{{ index .Data \"%s\"}}", _match[1]), -1 )
+
+                _mapFunc[_match[1]] = MAPFunc[_match[1]]
             }
+
+            mapFuncs[column.Name] = _mapFunc
+
             tmpl, err := template.New("").Parse(_content)
             if err != nil {
                 log.Fatalf("Parse: %v", err)
