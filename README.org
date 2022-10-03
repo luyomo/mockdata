@@ -154,6 +154,44 @@ OhMyTiUP$ ./bin/mockdata --threads 16 --loop 1 --config etc/data.config.yaml --o
   | 610 millions   |             50 |      400000 |      64 | 53G  |
 
 * TODO
-** Convert the data generation to distribution system to fasten the performance.
-** Generate data to ttl directly for tikv-importer to improve the performance.
-** Add the TUI from OhMyTiUP To mockdata
+ + Convert the data generation to distribution system to fasten the performance.
+ + Generate data to ttl directly for tikv-importer to improve the performance.
+ + Generate CSV file to S3
+ + Add the TUI from OhMyTiUP To mockdata
+
+* event_month
+  #+BEING_SRC
+  time ./bin/mockdata --loop 100 --config etc/event_month.yaml --output /tmp/mockdata --file-name=test.event_month --rows 100000  --host=182.83.1.171 --user=root --pd-ip=182.83.1.118
+  real    144m8.529s                                                                                                                                                                   
+  user    380m38.129s                                                                                                                                                                  
+  sys     35m37.681s
+
+MySQL [test]> select data_length/(1024*1024*1024) from information_schema.tables where table_name = 'event_month' \G
+data_length/(1024*1024*1024): 176.0461
+1 row in set (0.008 sec)
+
+MySQL [information_schema]> select * from table_storage_stats where table_schema = 'test' and table_name = 'event_month';
++--------------+-------------+----------+------------+--------------+--------------------+------------+------------+
+| TABLE_SCHEMA | TABLE_NAME  | TABLE_ID | PEER_COUNT | REGION_COUNT | EMPTY_REGION_COUNT | TABLE_SIZE | TABLE_KEYS |
++--------------+-------------+----------+------------+--------------+--------------------+------------+------------+
+| test         | event_month |      126 |          3 |         2128 |                 79 |     201236 |  160053659 |
++--------------+-------------+----------+------------+--------------+--------------------+------------+------------+
+1 row in set (0.005 sec)
+
+admin@ip-182-83-1-7:~/tidb/tidb-data$ du -sh tikv-20160/
+24G     tikv-20160/
+admin@ip-182-83-1-7:~/tidb/tidb-data/tikv-20160$ du -sh * 
+0       LOCK
+23G     db
+1.2M    import
+20K     last_tikv.toml
+23M     raft-engine
+0       raftdb.info
+54M     rocksdb.info
+4.0K    snap
+1.1G    space_placeholder_file
+  #+END_SRC
+
+  | Disk Size   | Table Size | Compress ratio |
+  |-------------+------------+----------------|
+  | 23GB*3=69GB | 170GB      | 1:8            |
