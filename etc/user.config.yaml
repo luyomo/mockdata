@@ -1,0 +1,31 @@
+ROWS: 5000
+COLUMNS:
+  - IDX: 01
+    Name: user_id
+    DataType: string
+    Function: sequence
+  - IDX: 02
+    Name: app_id
+    DataType: string
+    Function: sequence
+  - IDX: 03
+    Name: code
+    DataType: string
+    Function: UniqueRandomString
+    Parameters:
+      - key: min
+        value: 80
+      - key: max
+        value: 100 
+  - IDX: 04
+    Name: code_created 
+    DataType: int
+    Function: random
+    Max: 10000
+    Min: 1
+  - IDX: 05
+    Name: created
+    DataType: int
+    Function: random
+    Max: 10000
+    Min: 1

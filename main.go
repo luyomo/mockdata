@@ -364,6 +364,7 @@ func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string
                  }
             }
 
+	    // Make the function common
             if column.Function == "RandomString" {
                 var _min, _max int
                 for _, _p := range column.Parameters {
@@ -388,6 +389,33 @@ func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string
                     c := CHARSET[rand.Intn(len(CHARSET))]
                     _data += string(c)
                 }
+            }
+
+            if column.Function == "UniqueRandomString" {
+                var _min, _max int
+                for _, _p := range column.Parameters {
+                    if _p.Key == "min" {
+                        _min, err = strconv.Atoi(_p.Value)
+                        if err != nil {
+                            return err
+                        }
+                    }
+                    if _p.Key == "max" {
+                        _max, err = strconv.Atoi(_p.Value)
+                        if err != nil {
+                            return err
+                        }
+                    }
+                }
+                rand.Seed(time.Now().UnixNano())
+
+                // Getting random character
+                _data = ""
+                for _idx := 0; _idx < _min + rand.Intn(_max - _min + 1) ; _idx++ {
+                    c := CHARSET[rand.Intn(len(CHARSET))]
+                    _data += string(c)
+                }
+                _data += strconv.Itoa(threads*rows + idx)
             }
 
             if column.Function == "template" {
@@ -446,13 +474,7 @@ func InstallTiDBLightning() error {
     if runtime.GOOS == "windows" {
         fmt.Println("Can't Execute this on a windows machine")
     } else {
-                // fmt.Printf("Starting to check the data \n")
         if _, err := os.Stat("mockdata/bin/tidb-lightning"); errors.Is(err, os.ErrNotExist) {
-            // file does not exist
-                        // fmt.Printf("Started to check mockdata \n")
-
-            // fmt.Printf("The os is <%s> \n", runtime.GOOS)
-            // fmt.Printf("The os is <%s> \n", runtime.GOARCH)
             binFile := fmt.Sprintf("tidb-community-toolkit-%s-linux-%s.tar.gz", "v6.2.0", runtime.GOARCH)
             fullBinFile := fmt.Sprintf("tidb-community-toolkit-%s-linux-%s/tidb-lightning-%s-linux-%s.tar.gz", "v6.2.0", runtime.GOARCH, "v6.2.0", runtime.GOARCH)
 
@@ -575,12 +597,10 @@ func contains(s []string, str string) bool {
 }
 
 func parseTemplate(dbConn TiDBLightningConn, configFile string) {
-//    fmt.Printf("This is the testing data \n")
     data, err := embed.ReadTemplate("templates/tidb-lightning.toml.tpl")
     if err != nil {
         panic(err)
     }
- //   fmt.Printf("This is the template %s \n",data)
 
     tmpl, err := template.New("").Parse(string(data))
     if err != nil {
@@ -589,15 +609,12 @@ func parseTemplate(dbConn TiDBLightningConn, configFile string) {
 
     var ret bytes.Buffer
     err = tmpl.Execute(&ret, dbConn)
-//    fmt.Printf("The data is %s \n", ret.String())
 
-//    fo, err := os.Create("/tmp/tidb-lightning.toml")
     fo, err := os.Create(configFile)
     if err != nil {
         panic(err)
     }
 
-    // close fo on exit and check for its returned error
     defer func() {
         if err := fo.Close(); err != nil {
             panic(err)
