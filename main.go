@@ -81,7 +81,7 @@ func main() {
     // Install TiDB lightning locally
     InstallTiDBLightning()
 
-    var threads, rows, loop int
+    var threads, rows, loop, base int
     var configFile string
     var outputFolder string
     var fileName string
@@ -128,6 +128,7 @@ func main() {
     rootCmd.PersistentFlags().IntVar(&threads, "threads", runtime.NumCPU(), "Threads to generate the data")
     rootCmd.PersistentFlags().IntVar(&rows, "rows", 1, "Number of rows for each thread")
     rootCmd.PersistentFlags().IntVar(&loop, "loop", 1, "TiDB Lightning loop")
+    rootCmd.PersistentFlags().IntVar(&base, "base", 0, "base number of the PK")
     rootCmd.PersistentFlags().StringVar((*string)(&configFile), "config", "", "Config file for data generattion")
     rootCmd.PersistentFlags().StringVar((*string)(&outputFolder), "output", "", "Output folder for data generattion")
     rootCmd.PersistentFlags().StringVar((*string)(&fileName), "file-name", "", "file or table name for data generattion. For tidb lightning, please user schema_name.table_name.csv")
@@ -177,7 +178,7 @@ func main() {
                 // fmt.Printf("The index is <%d> \n", _index + _loop*threads)
 
                 csvFile := fmt.Sprintf("%s/%s.%03d.csv", csvOutputFolder, fileName, _index)
-                GenerateDataTo(_index + _loop*threads, rows, mockDataConfig, csvFile)
+                GenerateDataTo(base + _index + _loop*threads, rows, mockDataConfig, csvFile)
 
                 defer waitGroup.Done()
             }(_idx)
