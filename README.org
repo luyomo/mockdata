@@ -1,6 +1,12 @@
 #+OPTIONS: \n:t
 * Background
   [[https://www.mockaroo.com/][mockaroo]] is one very commerial tool for mock data generation. And I tried to use it even though it's one commerial one. But finally I gave it up because I need to big data import. Also found there is another open source [[https://generatedata.com/][generatedata]] which also generate data for you. The reason I did not decide to use it because I need one API not GUI. My idea I can generate the data and import to TiDB directly with tidb lightning.
+* Install
+  #+BEGIN_SRC
+OhMyTiUP$ wget https://github.com/luyomo/mockdata/releases/download/v0.0.2/mockdata_0.0.2_linux_amd64.tar.gz
+OhMyTiUP$ tar xvf mockdata_0.0.2_linux_amd64.tar.gz
+OhMyTiUP$ mv bin/* /usr/local/bin/
+  #+END_SRC
 * Support function
  + ID
    ID sequence, primary key.
