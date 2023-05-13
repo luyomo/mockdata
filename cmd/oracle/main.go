@@ -27,6 +27,7 @@ import (
 	//"github.com/pkg/errors"
 	"github.com/luyomo/mockdata/internal/config"
 	"github.com/luyomo/mockdata/internal/database/oracle"
+	dt "github.com/luyomo/mockdata/internal/data"
 	//"go.uber.org/zap"
 )
 
@@ -61,18 +62,25 @@ func main() {
             fmt.Printf("The table definition: <%#v> \n", def)
         }   
 
-        data := make([][]interface{}, 5)
-        for index := 1; index<=5; index++{
-            row := make([]interface{}, 2)
-            row[0] = index
-            row[1] = index
-            // row = append(row, index)
-            // row = append(row, index)
-
-            //data = append(data, row)
-            data[index - 1] = row
+        data, err := dt.GenerateOracleData(tableDef, 2)
+        if err != nil {
+            panic(err)
         }
-        fmt.Printf("data is: <%#v> \n", data)
+        fmt.Printf("Generated data: %#v \n", *data)
+        // return
+
+        // data := make([][]interface{}, 5)
+        // for index := 1; index<=5; index++{
+        //     row := make([]interface{}, 2)
+        //     row[0] = index
+        //     row[1] = index
+        //     // row = append(row, index)
+        //     // row = append(row, index)
+
+        //     //data = append(data, row)
+        //     data[index - 1] = row
+        // }
+        // fmt.Printf("data is: <%#v> \n", data)
 
         if err := oracleDB.InsertData(_entry["schema"], _entry["table"], tableDef, data); err != nil {
             panic(err)
