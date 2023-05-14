@@ -6,10 +6,9 @@ admin@workstation:/tmp/mockdata$ tar xvf mockoracle-0.0.3.x86_64-linux.tar.gz
 
 # Oracle lib preparation
 ```
-admin@workstation/tmp/mockdata$ wget https://download.oracle.com/otn_software/linux/instantclient/219000/instantclient-tools-linux.x64-21.9.0.0.0dbru.zip
-admin@workstation/tmp/mockdata$ sudo unzip -d /opt/oracle instantclient-tools-linux.x64-21.9.0.0.0dbru.zip
-admin@workstation/tmp/mockdata$ export PATH=/opt/oracle/instantclient_21_9:$PATH
-admin@workstation/tmp/mockdata$ export LD_LIBRARY_PATH=/opt/oracle/instantclient_21_9:$LD_LIBRARY_PATH
+admin@workstation/tmp/mockdata$ wget https://download.oracle.com/otn_software/linux/instantclient/214000/instantclient-basic-linux.x64-21.4.0.0.0dbru.zip
+admin@workstation/tmp/mockdata$ sudo unzip -d /opt/oracle instantclient-basic-linux.x64-21.4.0.0.0dbru.zip
+admin@workstation/tmp/mockdata$ export LD_LIBRARY_PATH=/opt/oracle/instantclient_21_4:$LD_LIBRARY_PATH
 ```
 
 # Config file preparation
