@@ -42,6 +42,7 @@ type Config struct {
     ConfigFile    string        `json:"config-file"`
     TablesArg     string        `json:"tables"`
     Tables        []map[string]string
+    NumOfRows     int           `json:"number-of-rows"`
     
 //     PrintVersion  bool
 //     TaskMode      string `json:"task-mode"`
@@ -174,6 +175,7 @@ func NewConfig() *Config {
     // fs.StringVar(&cfg.DBTypeS, "source", "oracle", "specify the source db type")
     // fs.StringVar(&cfg.DBTypeT, "target", "mysql", "specify the target db type")
     fs.StringVar(&cfg.TablesArg, "tables", "", "specify the tables to generate data into(schema01.table01,schema02.table02)")
+    fs.IntVar(&cfg.NumOfRows, "num-of-rows", 10, "specify the number of rows to be inserted into db")
     return cfg
 }
 

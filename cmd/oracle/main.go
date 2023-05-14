@@ -33,58 +33,46 @@ import (
 
 func main() {
 	cfg := config.NewConfig()
-    fmt.Printf("Paramter : <%#v> \n", cfg)
+    // fmt.Printf("Paramter : <%#v> \n", cfg)
 	if err := cfg.Parse(os.Args[1:]); err != nil {
 		log.Fatalf("start meta failed. error is [%s], Use '--help' for help.", err)
 	}
-    fmt.Printf("---------- <%#v> \n", cfg)
+    // fmt.Printf("---------- <%#v> \n", cfg)
 
     oracleDB, err := oracle.NewOracleDBEngine(context.Background(), cfg.OracleConfig)
     if err != nil {
         panic(err)
     }
 
-    schemas, err := oracleDB.GetOracleSchemas()
-    if err != nil {
-        panic(err)
-    }
+    // schemas, err := oracleDB.GetOracleSchemas()
+    // if err != nil {
+    //     panic(err)
+    // }
 
-    fmt.Printf("The schemas : <%#v> \n", schemas)
+    // fmt.Printf("The schemas : <%#v> \n", schemas)
 
-    fmt.Printf("The tables are : <%s> \n", cfg.Tables)
+    // fmt.Printf("The tables are : <%s> \n", cfg.Tables)
 
     for _, _entry := range cfg.Tables {
         tableDef, err := oracleDB.GetTableColDef(_entry["schema"], _entry["table"])
         if err != nil {
             panic(err)
         }
-        for _, def := range *tableDef {
-            fmt.Printf("The table definition: <%#v> \n", def)
-        }   
+        // for _, def := range *tableDef {
+        //     fmt.Printf("The table definition: <%#v> \n", def)
+        // }   
 
-        data, err := dt.GenerateOracleData(tableDef, 2)
+        data, err := dt.GenerateOracleData(tableDef, cfg.NumOfRows)
         if err != nil {
             panic(err)
         }
-        fmt.Printf("Generated data: %#v \n", *data)
-        // return
+        // fmt.Printf("Generated data: %#v \n", *data)
 
-        // data := make([][]interface{}, 5)
-        // for index := 1; index<=5; index++{
-        //     row := make([]interface{}, 2)
-        //     row[0] = index
-        //     row[1] = index
-        //     // row = append(row, index)
-        //     // row = append(row, index)
-
-        //     //data = append(data, row)
-        //     data[index - 1] = row
-        // }
-        // fmt.Printf("data is: <%#v> \n", data)
-
-        if err := oracleDB.InsertData(_entry["schema"], _entry["table"], tableDef, data); err != nil {
+        numOfRows, err := oracleDB.InsertData(_entry["schema"], _entry["table"], tableDef, data)
+        if err != nil {
             panic(err)
         }
+        fmt.Printf("%d rows have been instered into table(%s.%s) \n", numOfRows, _entry["schema"], _entry["table"])
     }
 
 	// // 初始化日志 logger

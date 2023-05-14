@@ -242,13 +242,13 @@ func Query(ctx context.Context, db *sql.DB, querySQL string) ([]string, []map[st
 // 	return nil
 // }
 
-func (o *Oracle) InsertData(schemaName, tableName string, cols *[]map[string]string, data *[][]interface{} ) error {
+func (o *Oracle) InsertData(schemaName, tableName string, cols *[]map[string]string, data *[][]interface{} ) (int, error){
     querySQL := prepareInsert(schemaName + "." + tableName, cols)
-    fmt.Printf("inser query: [%s] \n", querySQL)
+    //fmt.Printf("inser query: [%s] \n", querySQL)
 
 	stmt, err := o.OracleDB.Prepare(querySQL)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer func() {
 		_ = stmt.Close()
@@ -257,10 +257,11 @@ func (o *Oracle) InsertData(schemaName, tableName string, cols *[]map[string]str
     for _, row := range *data{
 	    _, err = stmt.Exec(row...)
 	    if err != nil {
-	    	return err
+	    	return 0, err
 	    }
     }
-	return nil
+
+	return len(*data), nil
 }
 
 func (o *Oracle) GetOracleSchemas() ([]string, error) {

@@ -1,7 +1,7 @@
 package data
 
 import (
-    "fmt"
+    //"fmt"
     "strconv"
 )
 
@@ -10,7 +10,7 @@ func GenerateOracleData(cols *[]map[string]string, numRows int) (*[][]interface{
     for index := 0; index < numRows; index++{
         _row := make([]interface{}, len(*cols))
         for idx, colDef := range *cols {
-            fmt.Printf("Column definition: %d,  %#v \n", idx, colDef)
+            // fmt.Printf("Column definition: %d,  %#v \n", idx, colDef)
 
             dataLen, err := strconv.Atoi(colDef["DATA_LENGTH"])
             if err != nil {
@@ -35,9 +35,17 @@ func GenerateOracleData(cols *[]map[string]string, numRows int) (*[][]interface{
 
             switch colDef["DATA_TYPE"] {
             case "VARCHAR2":
-                _row[idx] = generateString(dataLen, false, false)
+                if colDef["NULL"] == "Y" {
+                    _row[idx] = generateString(dataLen, false, false, true)     // data length, includKanji, isChar, isNullable
+                }else {
+                    _row[idx] = generateString(dataLen, false, false, false)
+                }
             case "CHAR":
-                _row[idx] = generateString(dataLen, false, true)
+                if colDef["NULL"] == "Y" {
+                    _row[idx] = generateString(dataLen, false, true, true)
+                } else {
+                    _row[idx] = generateString(dataLen, false, true, false)
+                }
             case "TIMESTAMP(6)":
                 _row[idx] = generateTimestamp(dataScale, "yyyy-mm-dd HH:MI:SS.ssssss")
             case "NUMBER":
