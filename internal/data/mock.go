@@ -21,16 +21,15 @@ func generateString(length int, includKanji, isChar, isNullable bool) string {
     rand.Seed(time.Now().UnixNano())
     dataLength := length
     if isChar == false{
-        dataLength = rand.Intn(length)
-    }
-
-    minLen := 1
-    if isNullable == false {
-        minLen = 0            // If it's nullable, the min started from 0
+        if isNullable == true {
+            dataLength = rand.Intn(length)
+        } else {
+            dataLength = rand.Intn(length - 1) + 1
+        }
     }
 
 	_data := ""
-    for _idx := minLen; _idx <  dataLength; _idx++ {
+    for _idx := 0; _idx <  dataLength; _idx++ {
         c := CHARSET[rand.Intn(len(CHARSET))]
         _data += string(c)
     }
