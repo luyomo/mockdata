@@ -3,9 +3,10 @@ package data
 import (
     //"fmt"
     "strconv"
+    "github.com/luyomo/mockdata/internal/database/oracle"
 )
 
-func GenerateOracleData(cols *[]map[string]string, numRows int) (*[][]interface{}, error) {
+func GenerateOracleData(cols *[]map[string]string, refData *map[string]oracle.TableInfo , numRows int) (*[][]interface{}, error) {
     data := make([][]interface{}, numRows)
     for index := 0; index < numRows; index++{
         _row := make([]interface{}, len(*cols))

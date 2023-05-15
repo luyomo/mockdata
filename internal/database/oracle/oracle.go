@@ -297,8 +297,8 @@ func (o *Oracle) GetOracleSchemaTable(schemaName string) ([]string, error) {
 	return tables, nil
 }
 
-func (o *Oracle) GetTableColDef(schemaName, tableName string) (*[]map[string]string, error){
-	_, res, err := Query(o.Ctx, o.OracleDB, fmt.Sprintf(`SELECT COLUMN_NAME, DATA_TYPE, DATA_LENGTH, DATA_PRECISION, DATA_SCALE, NULLABLE, CHARACTER_SET_NAME, COLLATION, USER_GENERATED FROM  DBA_TAB_COLS WHERE UPPER(owner) = UPPER('%s') AND UPPER(TABLE_NAME) = UPPER('%s') ORDER BY COLUMN_ID`, schemaName, tableName))
+func (o *Oracle) getTableColDef(schemaName, tableName string) (*[]map[string]string, error){
+	_, res, err := Query(o.Ctx, o.OracleDB, fmt.Sprintf(`SELECT OWNER as SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, DATA_TYPE, DATA_LENGTH, DATA_PRECISION, DATA_SCALE, NULLABLE, CHARACTER_SET_NAME, COLLATION, USER_GENERATED FROM  DBA_TAB_COLS WHERE UPPER(owner) = UPPER('%s') AND UPPER(TABLE_NAME) = UPPER('%s') ORDER BY COLUMN_ID`, schemaName, tableName))
 	if err != nil {
 		return nil, err
 	}
@@ -306,6 +306,81 @@ func (o *Oracle) GetTableColDef(schemaName, tableName string) (*[]map[string]str
     return &res, nil
 }
 
+func (o *Oracle) GetTableInfo(schemaName, tableName string) (*TableInfo, error){
+    // Fetch the table columns info
+    tblCols , err := o.getTableColDef(schemaName, tableName)
+    if err != nil {
+        return nil, err
+    }
+
+    // Set the Table ingo
+    var tableInfo TableInfo
+    tableInfo.SchemaName = schemaName
+    tableInfo.TableName  = tableName
+    tableInfo.Columns    = tblCols
+
+    // Get the reference tables
+    refTables, err := o.getReferenceTableColDef(schemaName, tableName)
+    if err != nil {
+        return nil, err
+    }
+    tableInfo.RefTables = refTables 
+
+    return &tableInfo, nil
+}
+
+type TableInfo struct {
+    SchemaName string
+    TableName  string
+    Columns    *[]map[string]string
+    RefTables  *map[string]TableInfo  
+}
+
+func (o *Oracle)  getReferenceTableColDef(schemaName, tableName string) (*map[string]TableInfo, error){
+	_, res, err := Query(o.Ctx, o.OracleDB, fmt.Sprintf(`
+ SELECT a.column_name, c.r_owner, c_pk.table_name r_table_name
+   FROM all_cons_columns a
+   JOIN all_constraints c
+     ON a.owner = c.owner
+    AND a.constraint_name = c.constraint_name
+   JOIN all_constraints c_pk
+     ON c.r_owner = c_pk.owner
+    AND c.r_constraint_name = c_pk.constraint_name
+  WHERE c.constraint_type = 'R'
+    AND UPPER(a.owner) = UPPER('%s')
+    AND UPPER(a.table_name) = UPPER('%s')
+`, schemaName, tableName))
+	if err != nil {
+		return nil, err
+	}
+
+    if len(res) == 0 {
+        return nil, nil
+    }
+
+    fmt.Printf("The tables are: <%s> \n", res)
+    mapTblInfo := make(map[string]TableInfo)
+
+    for _, _table := range res {
+        refTblCols , err := o.getTableColDef(_table["R_OWNER"], _table["R_TABLE_NAME"])
+        if err != nil {
+            return nil, err
+        }
+        var tblInfo TableInfo
+        tblInfo.SchemaName = _table["R_OWNER"]
+        tblInfo.TableName = _table["R_TABLE_NAME"]
+        tblInfo.Columns = refTblCols
+        refTables, err := o.getReferenceTableColDef(tblInfo.SchemaName, tblInfo.TableName)
+        if err != nil {
+            return nil, err
+        }
+        tblInfo.RefTables = refTables 
+
+        mapTblInfo[_table["COLUMN_NAME"]] = tblInfo
+    }
+
+    return &mapTblInfo, nil
+}
 
 func prepareInsert(fullTableName string, cols *[]map[string]string) string {
     var builder strings.Builder
@@ -316,9 +391,9 @@ func prepareInsert(fullTableName string, cols *[]map[string]string) string {
         }
         columnNames = append(columnNames, col["COLUMN_NAME"])
     }
-    colList := "(" + buildColumnList(columnNames) + ")" 
+    colList := "(" + buildColumnList(columnNames) + ")"
 
-    builder.WriteString("INSERT INTO " + fullTableName + colList + " VALUES ") 
+    builder.WriteString("INSERT INTO " + fullTableName + colList + " VALUES ")
 
     builder.WriteString("(" + placeHolder(len(columnNames)) + ")")
 
