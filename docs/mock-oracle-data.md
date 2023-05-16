@@ -1,7 +1,7 @@
 # Download the binary to linux
 ```
-admin@workstation:/tmp/mockdata$ wget https://github.com/luyomo/mockdata/releases/download/v0.0.3/mockoracle-0.0.3.x86_64-linux.tar.gz
-admin@workstation:/tmp/mockdata$ tar xvf mockoracle-0.0.3.x86_64-linux.tar.gz
+admin@workstation:/tmp/mockdata$ wget https://github.com/luyomo/mockdata/releases/download/v0.0.5/mockoracle-0.0.5.x86_64-linux.tar.gz
+admin@workstation:/tmp/mockdata$ tar xvf mockoracle-0.0.5.x86_64-linux.tar.gz
 ```
 
 # Oracle lib preparation
@@ -41,7 +41,7 @@ Table(ADMIN.TABLE02) depended by table(ADMIN.TABLE01) has data(25 rows). Skip da
 
 ## Table data generation for one schema without prompt
 ```
-admin@workstation:/tmp/mockdata$ in/mockoracle --config=/tmp/mockdata/config.toml --tables=ADMIN.* --num-of-rows=5 --prompt=false
+admin@workstation:/tmp/mockdata$ ./bin/mockoracle --config=/tmp/mockdata/config.toml --tables=ADMIN.* --num-of-rows=5 --prompt=false
 Starting to generate data for ADMIN.TEST01 ... ...       
 Table(ADMIN.TEST02) depended by table(ADMIN.TEST01) has data(45 rows). Skip data generation 
 Error inserting: <&godror.OraErr{message:"unique constraint (ADMIN.TEST01) violated", funName:"dpiStmt_execute", action:"execute", sqlState:"HY000", code:1, offset:0, reco
