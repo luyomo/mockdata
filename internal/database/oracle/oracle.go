@@ -255,14 +255,27 @@ func (o *Oracle) InsertData(schemaName, tableName string, cols *[]map[string]str
 		_ = stmt.Close()
 	}()
 
+    idx := 0
     for _, row := range *data{
 	    _, err = stmt.Exec(row...)
 	    if err != nil {
-	    	return 0, err
+            fmt.Printf("Error inserting: <%#v> \n", err)
+            continue
 	    }
+        idx = idx + 1
     }
 
-	return len(*data), nil
+	return idx, nil
+	// return len(*data), nil
+}
+
+func (o *Oracle) QueryRefTables(schemaName, tableName string) error {
+    fmt.Printf("Starting to query the reference data \n")
+    // 01. Get all the foreign tables
+    // 02.01. No key is same:  constrain01: data
+    // 02.02. There key is same: constrain02,constraint03: data
+
+    return nil
 }
 
 func (o *Oracle) QueryRefData(query string) (*[]interface{}, error){
@@ -304,7 +317,7 @@ func (o *Oracle) GetOracleSchemaTable(schemaName string) ([]string, error) {
 		tables []string
 		err    error
 	)
-	_, res, err := Query(o.Ctx, o.OracleDB, fmt.Sprintf(`SELECT table_name AS TABLE_NAME FROM DBA_TABLES WHERE UPPER(owner) = UPPER('%s') AND (IOT_TYPE IS NUll OR IOT_TYPE='IOT')`, schemaName))
+	_, res, err := Query(o.Ctx, o.OracleDB, fmt.Sprintf(`SELECT table_name AS TABLE_NAME FROM DBA_TABLES WHERE UPPER(owner) = UPPER('%s') AND (IOT_TYPE IS NUll OR IOT_TYPE='IOT') ORDER BY TABLE_NAME`, schemaName))
 	if err != nil {
 		return tables, err
 	}
@@ -337,11 +350,11 @@ func (o *Oracle) getTableColDef(schemaName, tableName string) (*[]map[string]str
 	_, res, err := Query(o.Ctx, o.OracleDB, fmt.Sprintf(`
      SELECT tbl.OWNER as SCHEMA_NAME, tbl.TABLE_NAME, tbl.COLUMN_NAME,  ref_tbl.REF_QUERY
       , DATA_TYPE, DATA_LENGTH, DATA_PRECISION, DATA_SCALE, NULLABLE, CHARACTER_SET_NAME
-      , COLLATION, USER_GENERATED, ref_tbl.REF_QUERY
+      , COLLATION, USER_GENERATED, CONSTRAINT_NAME, tbl.CHAR_USED
  FROM  DBA_TAB_COLS tbl
  LEFT JOIN (
-  SELECT c.owner, a.table_name, a.column_name
-       , 'SELECT ' || c_cols.column_name || ' FROM ' || c.r_owner || '.' ||  c_pk.table_name || ' where rownum < 3' as ref_query
+  SELECT c.owner, a.table_name, a.column_name, c.constraint_name
+       , 'SELECT ' || c_cols.column_name || ' FROM ' || c.r_owner || '.' ||  c_pk.table_name || ' where rownum < 1000' as ref_query
     FROM all_cons_columns a
     JOIN all_constraints c
       ON a.owner = c.owner
@@ -352,6 +365,7 @@ func (o *Oracle) getTableColDef(schemaName, tableName string) (*[]map[string]str
     JOIN all_cons_columns c_cols
       ON c_pk.owner = c_cols.owner
      AND c_pk.constraint_name = c_cols.constraint_name
+     AND a.POSITION = c_cols.POSITION
    WHERE c.constraint_type = 'R'
      AND UPPER(a.owner) = UPPER('%s')
      AND UPPER(a.table_name) = UPPER('%s')
@@ -361,6 +375,7 @@ func (o *Oracle) getTableColDef(schemaName, tableName string) (*[]map[string]str
   AND tbl.column_name = ref_tbl.column_name
  WHERE UPPER(tbl.owner) = UPPER('%s')
  AND UPPER(tbl.TABLE_NAME) = UPPER('%s')
+ AND tbl.HIDDEN_COLUMN = 'NO'
  ORDER BY COLUMN_ID`, schemaName, tableName, schemaName, tableName))
 	if err != nil {
 		return nil, err

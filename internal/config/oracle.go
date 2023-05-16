@@ -43,6 +43,7 @@ type Config struct {
     TablesArg     string        `json:"tables"`
     Tables        []map[string]string
     NumOfRows     int           `json:"number-of-rows"`
+    Prompt        bool          `json:"prompt"`
     
 //     PrintVersion  bool
 //     TaskMode      string `json:"task-mode"`
@@ -176,6 +177,7 @@ func NewConfig() *Config {
     // fs.StringVar(&cfg.DBTypeT, "target", "mysql", "specify the target db type")
     fs.StringVar(&cfg.TablesArg, "tables", "", "specify the tables to generate data into(schema01.table01,schema02.table02)")
     fs.IntVar(&cfg.NumOfRows, "num-of-rows", 10, "specify the number of rows to be inserted into db")
+    fs.BoolVar(&cfg.Prompt, "prompt", true, "Prompt before data generation")
     return cfg
 }
 

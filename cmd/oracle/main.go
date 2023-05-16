@@ -29,6 +29,7 @@ import (
 	"github.com/luyomo/mockdata/internal/database/oracle"
 	dt "github.com/luyomo/mockdata/internal/data"
 	//"go.uber.org/zap"
+    "github.com/pingcap/tiup/pkg/tui"
 )
 
 func main() {
@@ -44,92 +45,41 @@ func main() {
         panic(err)
     }
 
-    // schemas, err := oracleDB.GetOracleSchemas()
-    // if err != nil {
-    //     panic(err)
-    // }
-
-    // fmt.Printf("The schemas : <%#v> \n", schemas)
-
-    // fmt.Printf("The tables are : <%s> \n", cfg.Tables)
 
     for _, _entry := range cfg.Tables {
-        tableInfo, err := oracleDB.GetTableInfo(_entry["schema"], _entry["table"])
-        if err != nil {
-            panic(err)
+        if _entry["table"] == "*" {
+            schemaTables, err := oracleDB.GetOracleSchemaTable(_entry["schema"])
+            if err != nil {
+                panic(err)
+            }
+            for _, _table := range schemaTables {
+                ret := false 
+                if cfg.Prompt == true {
+                    ret, _ = tui.PromptForConfirmNo(fmt.Sprintf("Do you want to generate the data for %s.%s?", _entry["schema"] , _table))
+                }
+                if ret == false {
+                    fmt.Printf("Starting to generate data for %s.%s ... ... \n", _entry["schema"], _table)
+                    tableInfo, err := oracleDB.GetTableInfo(_entry["schema"], _table)
+                    if err != nil {
+                        fmt.Printf("Failed to generate data for %s.%s", _entry["schema"], _table)
+                        continue
+                    }
+                    GenTableData(oracleDB, tableInfo, nil, cfg.NumOfRows)
+                    fmt.Println("")
+                } else {
+                    fmt.Printf("Skip the data generation ... ...  \n")
+                }
+            }
+        } else {
+            tableInfo, err := oracleDB.GetTableInfo(_entry["schema"], _entry["table"])
+            if err != nil {
+                panic(err)
+            }
+            // PrintTableInfo(tableInfo)
+
+            GenTableData(oracleDB, tableInfo, nil, cfg.NumOfRows)
         }
-        // PrintTableInfo(tableInfo)
-
-        GenTableData(oracleDB, tableInfo, nil, cfg.NumOfRows)
-
-        // tableDef, err := oracleDB.getTableColDef(_entry["schema"], _entry["table"])
-        // if err != nil {
-        //     panic(err)
-        // }
-        // for _, def := range *tableDef {
-        //     fmt.Printf("The table definition: <%#v> \n", def)
-        // }   
-
-        // Look for reference table
-        // mapRefTableInfo, err := oracleDB.GetReferenceTableColDef(_entry["schema"], _entry["table"])
-        // if err != nil {
-        //     panic(err)
-        // }
-
-        // fmt.Printf("The config info is: <%#v> \n", mapRefTableInfo)
-
-        // fmt.Printf("reference table: <%#v> \n", arrRefTableInfo)
-        // for _, _refTable := range *arrRefTableInfo {
-        //     data, err := dt.GenerateOracleData(_refTable.Columns, cfg.NumOfRows)
-        //     if err != nil {
-        //         panic(err)
-        //     }
-
-        //     // fmt.Printf("Schema name : <%#v> \n", _refTable)
-
-        //     numOfRows, err := oracleDB.InsertData(_refTable.SchemaName, _refTable.TableName, _refTable.Columns, data)
-        //     if err != nil {
-        //         panic(err)
-        //     }
-        //     fmt.Printf("%d rows have been instered into table(%s.%s) \n", numOfRows, _refTable.SchemaName, _refTable.TableName)
-        // }
-
-        // continue
-
-        // data, err := dt.GenerateOracleData(tableDef, cfg.NumOfRows)
-        // if err != nil {
-        //     panic(err)
-        // }
-        // // fmt.Printf("Generated data: %#v \n", *data)
-
-        // numOfRows, err := oracleDB.InsertData(_entry["schema"], _entry["table"], tableDef, data)
-        // if err != nil {
-        //     panic(err)
-        // }
-        // fmt.Printf("%d rows have been instered into table(%s.%s) \n", numOfRows, _entry["schema"], _entry["table"])
     }
-
-	// // 初始化日志 logger
-	// logger.NewZapLogger(cfg)
-	// config.RecordAppVersion("transferdb", cfg)
-
-	// go func() {
-	// 	if err := http.ListenAndServe(cfg.AppConfig.PprofPort, nil); err != nil {
-	// 		zap.L().Fatal("listen and serve pprof failed", zap.Error(errors.Cause(err)))
-	// 	}
-	// 	os.Exit(0)
-	// }()
-
-	// // 信号量监听处理
-	// signal.SetupSignalHandler(func() {
-	// 	os.Exit(1)
-	// })
-
-	// // 程序运行
-	// ctx := context.Background()
-	// if err := server.Run(ctx, cfg); err != nil {
-	// 	zap.L().Fatal("server run failed", zap.Error(errors.Cause(err)))
-	// }
 }
 
 func PrintTableInfo(tableInfo *oracle.TableInfo){
@@ -164,6 +114,14 @@ func GenTableData(oracleDB *oracle.Oracle, tableInfo *oracle.TableInfo, parentTa
         panic(err)
     }
 
+    // Fetch the reference data
+    // err = oracleDB.QueryRefTables(tableInfo.SchemaName, tableInfo.TableName)
+    // if err != nil {
+    //     panic(err)
+    // }
+
+    // return
+
     if _count > 0 && parentTable != nil {
         fmt.Printf("Table(%s.%s) depended by table(%s) has data(%d rows). Skip data generation \n", tableInfo.SchemaName, tableInfo.TableName, *parentTable, _count)
         return
@@ -186,11 +144,13 @@ func GenTableData(oracleDB *oracle.Oracle, tableInfo *oracle.TableInfo, parentTa
     // fmt.Printf("Columns: <%#v> \n", tableInfo.Columns)
     data, err := dt.GenerateOracleData(tableInfo.Columns, &refData, numRows)
     if err != nil {
+        fmt.Printf("Failed to generate data (%s.%s) \n", tableInfo.SchemaName, tableInfo.TableName)
         panic(err)
     }
 
     numOfRows, err := oracleDB.InsertData(tableInfo.SchemaName, tableInfo.TableName, tableInfo.Columns, data)
     if err != nil {
+        fmt.Printf("Failed to insert data (%s.%s) \n", tableInfo.SchemaName, tableInfo.TableName)
         panic(err)
     }
     if parentTable == nil {
