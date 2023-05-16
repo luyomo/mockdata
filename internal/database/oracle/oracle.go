@@ -28,6 +28,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+    "errors"
 )
 
 type Oracle struct {
@@ -264,6 +265,23 @@ func (o *Oracle) InsertData(schemaName, tableName string, cols *[]map[string]str
 	return len(*data), nil
 }
 
+func (o *Oracle) QueryRefData(query string) (*[]interface{}, error){
+	cols, res, err := Query(o.Ctx, o.OracleDB, query)
+	if err != nil {
+        return nil, err
+	}
+
+    var resData []interface{}
+    for _, row := range res {
+        resData = append(resData, row[cols[0]])
+    }
+
+    // fmt.Printf("Columns: <%#v> \n", cols)
+    // fmt.Printf("Data: <%#v> \n", res)
+
+    return &resData, nil
+}
+
 func (o *Oracle) GetOracleSchemas() ([]string, error) {
 	var (
 		schemas []string
@@ -297,8 +315,53 @@ func (o *Oracle) GetOracleSchemaTable(schemaName string) ([]string, error) {
 	return tables, nil
 }
 
+func (o *Oracle) CountTableRows(schemaName, tableName string) (int64, error) {
+	_, res, err := Query(o.Ctx, o.OracleDB, fmt.Sprintf(`SELECT COUNT(*) AS CNT FROM %s.%s`, schemaName, tableName))
+	if err != nil {
+		return 0, err
+	}
+
+    if len(res) == 0 {
+        return 0, errors.New(fmt.Sprintf("Failed to count the rows of table(%s.%s).", schemaName, tableName))
+    }
+
+    cnt, err := strconv.ParseInt(res[0]["CNT"], 10, 64)
+    if err != nil {
+	    return 0, err
+    } 
+
+	return cnt, nil
+}
+
 func (o *Oracle) getTableColDef(schemaName, tableName string) (*[]map[string]string, error){
-	_, res, err := Query(o.Ctx, o.OracleDB, fmt.Sprintf(`SELECT OWNER as SCHEMA_NAME, TABLE_NAME, COLUMN_NAME, DATA_TYPE, DATA_LENGTH, DATA_PRECISION, DATA_SCALE, NULLABLE, CHARACTER_SET_NAME, COLLATION, USER_GENERATED FROM  DBA_TAB_COLS WHERE UPPER(owner) = UPPER('%s') AND UPPER(TABLE_NAME) = UPPER('%s') ORDER BY COLUMN_ID`, schemaName, tableName))
+	_, res, err := Query(o.Ctx, o.OracleDB, fmt.Sprintf(`
+     SELECT tbl.OWNER as SCHEMA_NAME, tbl.TABLE_NAME, tbl.COLUMN_NAME,  ref_tbl.REF_QUERY
+      , DATA_TYPE, DATA_LENGTH, DATA_PRECISION, DATA_SCALE, NULLABLE, CHARACTER_SET_NAME
+      , COLLATION, USER_GENERATED, ref_tbl.REF_QUERY
+ FROM  DBA_TAB_COLS tbl
+ LEFT JOIN (
+  SELECT c.owner, a.table_name, a.column_name
+       , 'SELECT ' || c_cols.column_name || ' FROM ' || c.r_owner || '.' ||  c_pk.table_name || ' where rownum < 3' as ref_query
+    FROM all_cons_columns a
+    JOIN all_constraints c
+      ON a.owner = c.owner
+     AND a.constraint_name = c.constraint_name
+    JOIN all_constraints c_pk
+      ON c.r_owner = c_pk.owner
+     AND c.r_constraint_name = c_pk.constraint_name
+    JOIN all_cons_columns c_cols
+      ON c_pk.owner = c_cols.owner
+     AND c_pk.constraint_name = c_cols.constraint_name
+   WHERE c.constraint_type = 'R'
+     AND UPPER(a.owner) = UPPER('%s')
+     AND UPPER(a.table_name) = UPPER('%s')
+   ) ref_tbl
+   ON tbl.owner = ref_tbl.owner
+  AND tbl.table_name = ref_tbl.table_name
+  AND tbl.column_name = ref_tbl.column_name
+ WHERE UPPER(tbl.owner) = UPPER('%s')
+ AND UPPER(tbl.TABLE_NAME) = UPPER('%s')
+ ORDER BY COLUMN_ID`, schemaName, tableName, schemaName, tableName))
 	if err != nil {
 		return nil, err
 	}
@@ -324,7 +387,7 @@ func (o *Oracle) GetTableInfo(schemaName, tableName string) (*TableInfo, error){
     if err != nil {
         return nil, err
     }
-    tableInfo.RefTables = refTables 
+    tableInfo.RefTables = refTables
 
     return &tableInfo, nil
 }
@@ -333,7 +396,7 @@ type TableInfo struct {
     SchemaName string
     TableName  string
     Columns    *[]map[string]string
-    RefTables  *map[string]TableInfo  
+    RefTables  *map[string]TableInfo
 }
 
 func (o *Oracle)  getReferenceTableColDef(schemaName, tableName string) (*map[string]TableInfo, error){
@@ -358,7 +421,7 @@ func (o *Oracle)  getReferenceTableColDef(schemaName, tableName string) (*map[st
         return nil, nil
     }
 
-    fmt.Printf("The tables are: <%s> \n", res)
+    // fmt.Printf("The tables are: <%s> \n", res)
     mapTblInfo := make(map[string]TableInfo)
 
     for _, _table := range res {
@@ -374,7 +437,7 @@ func (o *Oracle)  getReferenceTableColDef(schemaName, tableName string) (*map[st
         if err != nil {
             return nil, err
         }
-        tblInfo.RefTables = refTables 
+        tblInfo.RefTables = refTables
 
         mapTblInfo[_table["COLUMN_NAME"]] = tblInfo
     }

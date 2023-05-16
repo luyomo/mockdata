@@ -1,12 +1,13 @@
 package data
 
 import (
-    //"fmt"
+    // "fmt"
     "strconv"
-    "github.com/luyomo/mockdata/internal/database/oracle"
 )
 
-func GenerateOracleData(cols *[]map[string]string, refData *map[string]oracle.TableInfo , numRows int) (*[][]interface{}, error) {
+func GenerateOracleData(cols *[]map[string]string, refData *map[string][]interface{},  numRows int) (*[][]interface{}, error) {
+    // fmt.Printf("reference data: <%#v> \n", (*refData)["ISSUER_CD02"])
+
     data := make([][]interface{}, numRows)
     for index := 0; index < numRows; index++{
         _row := make([]interface{}, len(*cols))
@@ -32,6 +33,13 @@ func GenerateOracleData(cols *[]map[string]string, refData *map[string]oracle.Ta
                 if err != nil {
                     return nil, err
                 }
+            }
+
+            // fmt.Printf("The column has reference data: <%s> \n",colDef["COLUMN_NAME"] )
+            if (*refData)[colDef["COLUMN_NAME"]] != nil {
+                // fmt.Printf("Data list: <%#v> \n", (*refData)[colDef["COLUMN_NAME"]] )
+                _row[idx] = pickRandItem((*refData)[colDef["COLUMN_NAME"]])
+                continue
             }
 
             switch colDef["DATA_TYPE"] {

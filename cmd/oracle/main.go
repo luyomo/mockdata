@@ -58,9 +58,9 @@ func main() {
         if err != nil {
             panic(err)
         }
-        PrintTableInfo(tableInfo)
+        // PrintTableInfo(tableInfo)
 
-        GenTableData(oracleDB, tableInfo, cfg.NumOfRows)
+        GenTableData(oracleDB, tableInfo, nil, cfg.NumOfRows)
 
         // tableDef, err := oracleDB.getTableColDef(_entry["schema"], _entry["table"])
         // if err != nil {
@@ -147,18 +147,44 @@ func PrintTableInfo(tableInfo *oracle.TableInfo){
     fmt.Printf("Schema Name: %s, Table Name: %s \n", tableInfo.SchemaName, tableInfo.TableName)
 }
 
-func GenTableData(oracleDB *oracle.Oracle, tableInfo *oracle.TableInfo, numRows int){
+func GenTableData(oracleDB *oracle.Oracle, tableInfo *oracle.TableInfo, parentTable *string, numRows int){
     if tableInfo == nil {
         return
     }
 
     if tableInfo.RefTables != nil {
         for _, _subTableInfo := range *tableInfo.RefTables {
-            GenTableData(oracleDB, &_subTableInfo, numRows)
+            _parentTable := fmt.Sprintf("%s.%s", tableInfo.SchemaName, tableInfo.TableName)
+            GenTableData(oracleDB, &_subTableInfo, &_parentTable,  numRows)
         }
     }
 
-    data, err := dt.GenerateOracleData(tableInfo.Columns, tableInfo.RefTables, numRows)
+    _count, err := oracleDB.CountTableRows(tableInfo.SchemaName, tableInfo.TableName)
+    if err != nil {
+        panic(err)
+    }
+
+    if _count > 0 && parentTable != nil {
+        fmt.Printf("Table(%s.%s) depended by table(%s) has data(%d rows). Skip data generation \n", tableInfo.SchemaName, tableInfo.TableName, *parentTable, _count)
+        return
+    }
+
+    // Fetch reference data map[string][]interface{}
+    refData := make(map[string][]interface{})
+    for _, col := range *tableInfo.Columns {
+        if col["REF_QUERY"] != "" {
+            // fmt.Printf("Column definition: <%#v> \n", col)
+            refColData, err := oracleDB.QueryRefData(col["REF_QUERY"])
+            if err != nil {
+                panic(err)
+            }
+            refData[col["COLUMN_NAME"]] = *refColData
+            // fmt.Printf("Column data: <%#v> \n", refData)
+        }
+    }
+
+    // fmt.Printf("Columns: <%#v> \n", tableInfo.Columns)
+    data, err := dt.GenerateOracleData(tableInfo.Columns, &refData, numRows)
     if err != nil {
         panic(err)
     }
@@ -167,5 +193,9 @@ func GenTableData(oracleDB *oracle.Oracle, tableInfo *oracle.TableInfo, numRows 
     if err != nil {
         panic(err)
     }
-    fmt.Printf("%d rows have been instered into table(%s.%s) \n", numOfRows, tableInfo.SchemaName, tableInfo.TableName)
+    if parentTable == nil {
+        fmt.Printf("%d rows have been instered into table(%s.%s) \n", numOfRows, tableInfo.SchemaName, tableInfo.TableName)
+    }else {
+        fmt.Printf("%d rows have been instered into table(%s.%s) depended by table(%s) \n", numOfRows, tableInfo.SchemaName, tableInfo.TableName, *parentTable)
+    }
 }

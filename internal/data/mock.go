@@ -10,6 +10,13 @@ const (
     CHARSET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 )
 
+func pickRandItem(data []interface{}) interface{} {
+    rand.Seed(time.Now().UnixNano())
+    numOfEle := len(data)
+
+    return data[rand.Intn(numOfEle)]
+} 
+
 func generateNumber(length, precision, scale int) int{
     rand.Seed(time.Now().UnixNano())
     numLen := precision - scale
