@@ -2,11 +2,11 @@
 I got a request to migrate more than 500 DDL from oracle to TiDB database, which is broken down into below three small tasks:
   * DDL conversion from oracle to TiDB
   * Test data generation into oracle
-  * Data migration verification from oracle to TiDB - The AWS DMS is used for the data migration. Will not explain this part in this article. \
+  * Data migration verification from oracle to TiDB - The AWS DMS is used for the data migration. Will not explain this part in this article.
 
-It's a really challenge if the number of tables exceed 500 within one day manually. In order to complete this task on time, I was looking for proper tools to do that. [Transferdb](https://github.com/wentaojin/transferdb) is the one I recommend to you for DDL conversion from oracle to mysql protocol database. I will prepare another article to introduce how to use. As a result, it took me only 30 minutes to the DDL conversion automatically. \
-The another task is test data generation for these 500 tables. This mockdata helps you to achieve it winthin another 30 minutes. The idea behind is simple. It reads the metadata from oracle and generate test data according to the data type(varchar2, char, number, timestamp and date) and foreign key to insert. If foreign key exists in the table, the depended tables' data is generated first and pick up the data into the child tables' foreign key's column.\
-In the next section, I will introduce how to use mockdata to generate test data.
+  It's a really challenge if the number of tables exceed 500 within one day manually. In order to complete this task on time, I was looking for proper tools to do that. [Transferdb](https://github.com/wentaojin/transferdb) is the one I recommend to you for DDL conversion from oracle to mysql protocol database. I will prepare another article to introduce how to use. As a result, it took me only 30 minutes to the DDL conversion automatically. \
+  The another task is test data generation for these 500 tables. This mockdata helps you to achieve it winthin another 30 minutes. The idea behind is simple. It reads the metadata from oracle and generate test data according to the data type(varchar2, char, number, timestamp and date) and foreign key to insert. If foreign key exists in the table, the depended tables' data is generated first and pick up the data into the child tables' foreign key's column.\
+  In the next section, I will introduce how to use mockdata to generate test data.
 # Installation and usage
 ## Download the binary to linux
 ```
