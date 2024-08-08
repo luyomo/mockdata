@@ -1,0 +1,110 @@
+ROWS: 5000
+COLUMNS:
+  - IDX: 01
+    Name: id
+    DataType: int
+    Function: random
+    Max: 10
+    Min: 1
+  - IDX: 02
+    Name: order_date
+    DataType: Date
+    Function: RandomDate
+    Parameters:
+      - key: min
+        value: 2024-07-20
+      - key: max
+        value: 2024-07-30
+  - IDX: 03
+    Name: market_id
+    DataType: int
+    Function: random
+    Max: 10
+    Min: 1
+  - IDX: 04
+    Name: security_id
+    DataType: int
+    Function: random
+    Max: 10
+    Min: 1
+  - IDX: 05
+    Name: market_type
+    DataType: string
+    Function: list
+    Values: 
+    - market001
+    - market002
+    - market003
+    - market004
+    - market005
+    - market006
+    - market007
+    - market008
+    - market009
+    - market010
+  - IDX: 06
+    Name: comment
+    DataType: string
+    Function: uuid
+  - IDX: 07
+    Name: quantity
+    DataType: int
+    Function: random
+    Max: 10
+    Min: 1
+  - IDX: 08
+    Name: buy_quantity
+    DataType: int
+    Function: random
+    Max: 10
+    Min: 1
+  - IDX: 09
+    Name: buy_quantity_commission
+    DataType: int
+    Function: random
+    Max: 10
+    Min: 1
+  - IDX: 10
+    Name: sell_quantity
+    DataType: int
+    Function: random
+    Max: 10
+    Min: 1
+  - IDX: 11
+    Name: sell_quantity_commission
+    DataType: int
+    Function: random
+    Max: 10
+    Min: 1
+  - IDX: 12
+    Name: total_quantity
+    DataType: int
+    Function: random
+    Max: 10
+    Min: 1
+  - IDX: 13
+    Name: total_commission
+    DataType: int
+    Function: random
+    Max: 10
+    Min: 1
+  - IDX: 14
+    Name: margin
+    DataType: int
+    Function: random
+    Max: 10
+    Min: 1
+  - IDX: 15
+    Name: currency
+    DataType: string
+    Function: list
+    Values: 
+    - JP
+    - dollor
+    - euro
+  - IDX: 16
+    Name: amount
+    DataType: int
+    Function: random
+    Max: 10
+    Min: 1

@@ -41,12 +41,13 @@ var (
 )
 
 type TiDBLightningConn struct {
-    TiDBHost string
-    TiDBPort int
-    TiDBUser string
-    TiDBPassword string
-    PDIP string
-    DataFolder string
+    TiDBHost         string
+    TiDBPort         int
+    TiDBUser         string
+    TiDBPassword     string
+    PDIP             string
+    DataFolder       string
+    LightningVersion string
 }
 
 var rootCmd = &cobra.Command{
@@ -78,13 +79,12 @@ type MockDataStructure struct {
 var MAPFunc = make(map[string]func()(string, error))
 
 func main() {
-    // Install TiDB lightning locally
-    InstallTiDBLightning()
 
     var threads, rows, loop, base int
-    var configFile string
+    var configFile   string
     var outputFolder string
-    var fileName string
+    var fileName     string
+    var lightningVer string
 
     var dbConn TiDBLightningConn
 
@@ -132,6 +132,7 @@ func main() {
     rootCmd.PersistentFlags().StringVar((*string)(&configFile), "config", "", "Config file for data generattion")
     rootCmd.PersistentFlags().StringVar((*string)(&outputFolder), "output", "", "Output folder for data generattion")
     rootCmd.PersistentFlags().StringVar((*string)(&fileName), "file-name", "", "file or table name for data generattion. For tidb lightning, please user schema_name.table_name.csv")
+    rootCmd.PersistentFlags().StringVar((*string)(&lightningVer), "lightning-ver", "v7.5.2", "The version of the lighting")
 
     rootCmd.PersistentFlags().StringVar((*string)(&dbConn.TiDBHost), "host", "", "TiDB Host name")
     rootCmd.PersistentFlags().IntVar(&dbConn.TiDBPort, "port", 4000, "TiDB Port")
@@ -142,6 +143,8 @@ func main() {
     rootCmd.Execute()
     //fmt.Printf("The TiDB config info is <%#v> \n", dbConn)
 
+    // Install TiDB lightning locally
+    InstallTiDBLightning(lightningVer)
 
     // Read the data config file. (example: etc/data.config.yaml)
     yfile, err := ioutil.ReadFile(configFile)
@@ -471,13 +474,13 @@ func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string
     return nil
 }
 
-func InstallTiDBLightning() error {
+func InstallTiDBLightning(lightningVer string) error {
     if runtime.GOOS == "windows" {
         fmt.Println("Can't Execute this on a windows machine")
     } else {
         if _, err := os.Stat("mockdata/bin/tidb-lightning"); errors.Is(err, os.ErrNotExist) {
-            binFile := fmt.Sprintf("tidb-community-toolkit-%s-linux-%s.tar.gz", "v6.2.0", runtime.GOARCH)
-            fullBinFile := fmt.Sprintf("tidb-community-toolkit-%s-linux-%s/tidb-lightning-%s-linux-%s.tar.gz", "v6.2.0", runtime.GOARCH, "v6.2.0", runtime.GOARCH)
+            binFile := fmt.Sprintf("tidb-community-toolkit-%s-linux-%s.tar.gz", lightningVer, runtime.GOARCH)
+            fullBinFile := fmt.Sprintf("tidb-community-toolkit-%s-linux-%s/tidb-lightning-%s-linux-%s.tar.gz", lightningVer, runtime.GOARCH, lightningVer, runtime.GOARCH)
 
             cmd := exec.Command("wget", "https://download.pingcap.org/"+binFile, "-O", "/tmp/"+binFile)
             cmd.Stdout = os.Stdout
@@ -499,7 +502,7 @@ func InstallTiDBLightning() error {
                 return err
             }
 
-            r, err = os.Open(fmt.Sprintf("tidb-community-toolkit-%s-linux-%s/tidb-lightning-%s-linux-%s.tar.gz", "v6.2.0", runtime.GOARCH, "v6.2.0", runtime.GOARCH  ))
+            r, err = os.Open(fmt.Sprintf("tidb-community-toolkit-%s-linux-%s/tidb-lightning-%s-linux-%s.tar.gz", lightningVer, runtime.GOARCH, lightningVer, runtime.GOARCH  ))
             if err != nil {
                 fmt.Println("error")
             }
@@ -526,7 +529,7 @@ func InstallTiDBLightning() error {
                 return err
             }
 
-            cmd = exec.Command("rm", "-rf", fmt.Sprintf("tidb-community-toolkit-%s-linux-%s", "v6.2.0", runtime.GOARCH))
+            cmd = exec.Command("rm", "-rf", fmt.Sprintf("tidb-community-toolkit-%s-linux-%s", lightningVer, runtime.GOARCH))
             cmd.Stdout = os.Stdout
             cmd.Stderr = os.Stderr
             if err := cmd.Run(); err != nil {

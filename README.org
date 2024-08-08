@@ -1,10 +1,10 @@
 #+OPTIONS: \n:t
 * Background
-  [[https://www.mockaroo.com/][mockaroo]] is one very commerial tool for mock data generation. And I tried to use it even though it's one commerial one. But finally I gave it up because I need to big data import. Also found there is another open source [[https://generatedata.com/][generatedata]] which also generate data for you. The reason I did not decide to use it because I need one API not GUI. My idea I can generate the data and import to TiDB directly with tidb lightning.
+  [[https://www.mockaroo.com/][mockaroo]] is one commerial tool for mock data generation. And I tried to use it even though it's one commerial one. But finally I gave it up because I need to big data import. Also found there is another open source [[https://generatedata.com/][generatedata]] which also generated data for you. The reason I did not decide to use it is that I need one API not GUI. My idea is that I generate the data and import to TiDB directly with tidb lightning.
 * Install
   #+BEGIN_SRC
-OhMyTiUP$ wget https://github.com/luyomo/mockdata/releases/download/v0.0.2/mockdata_0.0.2_linux_amd64.tar.gz
-OhMyTiUP$ tar xvf mockdata_0.0.2_linux_amd64.tar.gz
+OhMyTiUP$ wget https://github.com/luyomo/mockdata/releases/download/v0.0.3/mockdata_0.0.3_linux_amd64.tar.gz
+OhMyTiUP$ tar xvf mockdata_0.0.3_linux_amd64.tar.gz
 OhMyTiUP$ mv bin/* /usr/local/bin/
   #+END_SRC
 * Support function
@@ -124,6 +124,9 @@ COLUMNS:
 
 * Example
 ** Run the mockdata command
+  #+BEGIN_SRC
+  $ mockdata --threads 1 --loop 1 --config /tmp/config.yaml --output /tmp/mockdata --file-name=test.test01 --rows 20 --host 10.0.154.155 --user=root --pd-ip=10.0.240.79 ----lightning-ver v8.0.0
+  #+END_SRC
   [[./png/003.png]]
 ** Check the result
  [[./png/004.png]]
@@ -144,7 +147,7 @@ go mod tidy
 
 * Performance test
 #+BEGIN_SRC
-OhMyTiUP$ ./bin/mockdata --threads 16 --loop 1 --config etc/data.config.yaml --output /tmp/mockdata --file-name=test.test01 --rows 20  --host=172.83.1.89 --user=root --pd-ip=172.83.1.241
+OhMyTiUP$ ./bin/mockdata --threads 16 --loop 1 --config etc/data.config.yaml --output /tmp/mockdata --file-name=test.test01 --rows 20  --host=172.83.1.89 --user=root --pd-ip=172.83.1.241 --lightning-ver v8.0.0
 #+END_SRC
 ** c5d.4xlarge
   | Number of rows | Execution time | Transaction | Threads | Size |
