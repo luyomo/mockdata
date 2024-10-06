@@ -55,19 +55,25 @@ var rootCmd = &cobra.Command{
     Short: "Generate mock data",
     Long:  `Generate mock data `,
     Run: func(cmd *cobra.Command, args []string) {
-        // fmt.Printf("Hello world \n")
+      fmt.Printf("Hello world \n")
+      fmt.Printf("opts: %#v \n", opts)
+      fmt.Printf("dbConn: %#v \n", dbConn)
+      err := generateData(&opts, &dbConn)
+      if err != nil {
+          panic(err)
+      }
     },
 }
 
 type MockDataStructure struct {
     Columns []struct {
-        Idx        int    `yaml:"IDX"`
-        Name       string `yaml:"Name"`
-        DataType   string `yaml:"DataType"`
-        Function   string `yaml:"Function"`
+        Idx        int      `yaml:"IDX"`
+        Name       string   `yaml:"Name"`
+        DataType   string   `yaml:"DataType"`
+        Function   string   `yaml:"Function"`
         Values     []string `yaml:"Values"`
-        Max        int    `yaml:"Max"`
-        Min        int    `yaml:"Min"`
+        Max        int      `yaml:"Max"`
+        Min        int      `yaml:"Min"`
         Parameters []struct {
             Key   string `yaml:"key"`
             Value string `yaml:"value"`
@@ -76,18 +82,49 @@ type MockDataStructure struct {
     Rows int `yaml:"ROWS"`
 }
 
+type CmdOpts struct {
+    Threads      int
+    Rows         int
+    Loop         int 
+    Base         int
+    ConfigFile   string
+    OutputFolder string
+    FileName     string
+    LightningVer string
+    DataGenOnly  bool
+}
+
+var opts   CmdOpts
+var dbConn TiDBLightningConn
+
 var MAPFunc = make(map[string]func()(string, error))
 
 func main() {
 
-    var threads, rows, loop, base int
-    var configFile   string
-    var outputFolder string
-    var fileName     string
-    var lightningVer string
+    // Set the arguments
+    rootCmd.PersistentFlags().IntVar(&opts.Threads, "threads", runtime.NumCPU(), "Threads to generate the data")
+    rootCmd.PersistentFlags().IntVar(&opts.Rows, "rows", 1, "Number of rows for each thread")
+    rootCmd.PersistentFlags().IntVar(&opts.Loop, "loop", 1, "TiDB Lightning loop")
+    rootCmd.PersistentFlags().IntVar(&opts.Base, "base", 0, "base number of the PK")
+    rootCmd.PersistentFlags().StringVar((*string)(&opts.ConfigFile), "config", "", "Config file for data generattion")
+    rootCmd.PersistentFlags().StringVar((*string)(&opts.OutputFolder), "output", "", "Output folder for data generattion")
+    rootCmd.PersistentFlags().StringVar((*string)(&opts.FileName), "file-name", "", "file or table name for data generattion. For tidb lightning, please user schema_name.table_name.csv")
+    rootCmd.PersistentFlags().StringVar((*string)(&opts.LightningVer), "lightning-ver", "v7.5.2", "The version of the lighting")
 
-    var dbConn TiDBLightningConn
+    rootCmd.PersistentFlags().StringVar((*string)(&dbConn.TiDBHost), "host", "", "TiDB Host name")
+    rootCmd.PersistentFlags().IntVar(&dbConn.TiDBPort, "port", 4000, "TiDB Port")
+    rootCmd.PersistentFlags().StringVar((*string)(&dbConn.TiDBUser), "user", "root", "TiDB User")
+    rootCmd.PersistentFlags().StringVar((*string)(&dbConn.TiDBPassword), "password", "", "TiDB Password")
+    rootCmd.PersistentFlags().StringVar((*string)(&dbConn.PDIP), "pd-ip", "", "pd ip address")
+    rootCmd.PersistentFlags().BoolVar(&opts.DataGenOnly, "data-only", false, "Data generation only")
 
+    rootCmd.Execute()
+
+    return
+
+}
+
+func generateData(opts *CmdOpts, dbConn * TiDBLightningConn) error {
     MAPFunc["BROWSER"] = func()(string, error){
         _value := BROWSER[rand.Intn(len(BROWSER))]
         return _value, nil
@@ -122,32 +159,16 @@ func main() {
 	return hex.EncodeToString([]byte(_data)), nil
     }
 
-    //
-
-    // Set the arguments
-    rootCmd.PersistentFlags().IntVar(&threads, "threads", runtime.NumCPU(), "Threads to generate the data")
-    rootCmd.PersistentFlags().IntVar(&rows, "rows", 1, "Number of rows for each thread")
-    rootCmd.PersistentFlags().IntVar(&loop, "loop", 1, "TiDB Lightning loop")
-    rootCmd.PersistentFlags().IntVar(&base, "base", 0, "base number of the PK")
-    rootCmd.PersistentFlags().StringVar((*string)(&configFile), "config", "", "Config file for data generattion")
-    rootCmd.PersistentFlags().StringVar((*string)(&outputFolder), "output", "", "Output folder for data generattion")
-    rootCmd.PersistentFlags().StringVar((*string)(&fileName), "file-name", "", "file or table name for data generattion. For tidb lightning, please user schema_name.table_name.csv")
-    rootCmd.PersistentFlags().StringVar((*string)(&lightningVer), "lightning-ver", "v7.5.2", "The version of the lighting")
-
-    rootCmd.PersistentFlags().StringVar((*string)(&dbConn.TiDBHost), "host", "", "TiDB Host name")
-    rootCmd.PersistentFlags().IntVar(&dbConn.TiDBPort, "port", 4000, "TiDB Port")
-    rootCmd.PersistentFlags().StringVar((*string)(&dbConn.TiDBUser), "user", "root", "TiDB User")
-    rootCmd.PersistentFlags().StringVar((*string)(&dbConn.TiDBPassword), "password", "", "TiDB Password")
-    rootCmd.PersistentFlags().StringVar((*string)(&dbConn.PDIP), "pd-ip", "", "pd ip address")
-
-    rootCmd.Execute()
     //fmt.Printf("The TiDB config info is <%#v> \n", dbConn)
 
-    // Install TiDB lightning locally
-    InstallTiDBLightning(lightningVer)
+    // If it's data only generation, the tidb lighting is not required.
+    if opts.DataGenOnly == false {
+      // Install TiDB lightning locally
+      InstallTiDBLightning(opts.LightningVer)
+    }
 
     // Read the data config file. (example: etc/data.config.yaml)
-    yfile, err := ioutil.ReadFile(configFile)
+    yfile, err := ioutil.ReadFile(opts.ConfigFile)
 
     if err != nil {
         log.Fatal(err)
@@ -161,27 +182,27 @@ func main() {
     }
 
     // Prepare the folder to keep the data
-    csvOutputFolder := outputFolder + "/data"
+    csvOutputFolder := opts.OutputFolder + "/data"
     cmd := exec.Command("mkdir", "-p", csvOutputFolder )
     cmd.Stdout = os.Stdout
     cmd.Stderr = os.Stderr
     if err := cmd.Run(); err != nil {
-            panic(err)
-            return
+        panic(err)
+        return err
     }
 
-    for _loop := 0; _loop < loop; _loop++  {
+    for _loop := 0; _loop < opts.Loop; _loop++  {
         var waitGroup sync.WaitGroup
         //errChan := make(chan error , 2)
 
         // fmt.Printf("The number thread is <%d> \n", threads)
-        for _idx := 0; _idx < threads; _idx++ {
+        for _idx := 0; _idx < opts.Threads; _idx++ {
             waitGroup.Add(1)
             go func(_index int) {
                 // fmt.Printf("The index is <%d> \n", _index + _loop*threads)
 
-                csvFile := fmt.Sprintf("%s/%s.%03d.csv", csvOutputFolder, fileName, _index)
-                GenerateDataTo(base + _index + _loop*threads, rows, mockDataConfig, csvFile)
+                csvFile := fmt.Sprintf("%s/%s.%03d.csv", csvOutputFolder, opts.FileName, _index)
+                GenerateDataTo(opts.Base + _index + _loop*opts.Threads, opts.Rows, mockDataConfig, csvFile)
 
                 defer waitGroup.Done()
             }(_idx)
@@ -189,28 +210,32 @@ func main() {
 
         waitGroup.Wait()
 
-        dbConn.DataFolder = csvOutputFolder
-        lightningConfigFile := fmt.Sprintf("%s/tidb-lightning.toml", outputFolder)
-        parseTemplate(dbConn, lightningConfigFile )
-        // fmt.Printf("The file is <%s> \n", lightningConfigFile )
-        // fmt.Printf("Starting to call %s \n", fmt.Sprintf( "/tmp/temp%d.txt", rand.Intn(100)))
-        cmd = exec.Command("mockdata/bin/tidb-lightning", "--config", lightningConfigFile )
-        cmd.Stdout = os.Stdout
-        cmd.Stderr = os.Stderr
-        if err := cmd.Run(); err != nil {
-            panic(err)
-            return
-        }
+        // If it's data only generation, the tidb lighting is not required.
+        if opts.DataGenOnly == false {
+            dbConn.DataFolder = csvOutputFolder
+            lightningConfigFile := fmt.Sprintf("%s/tidb-lightning.toml", opts.OutputFolder)
+            parseTemplate(dbConn, lightningConfigFile )
+            // fmt.Printf("The file is <%s> \n", lightningConfigFile )
+            // fmt.Printf("Starting to call %s \n", fmt.Sprintf( "/tmp/temp%d.txt", rand.Intn(100)))
+            cmd = exec.Command("mockdata/bin/tidb-lightning", "--config", lightningConfigFile )
+            cmd.Stdout = os.Stdout
+            cmd.Stderr = os.Stderr
+            if err := cmd.Run(); err != nil {
+                panic(err)
+                return err
+            }
 
-        csvOutputFolder := outputFolder + "/data"
-        cmd := exec.Command("rm", "-f", csvOutputFolder + "/*" )
-        cmd.Stdout = os.Stdout
-        cmd.Stderr = os.Stderr
-        if err := cmd.Run(); err != nil {
-            panic(err)
-            return
-        }
+            csvOutputFolder := opts.OutputFolder + "/data"
+            cmd := exec.Command("rm", "-f", csvOutputFolder + "/*" )
+            cmd.Stdout = os.Stdout
+            cmd.Stderr = os.Stderr
+            if err := cmd.Run(); err != nil {
+                panic(err)
+                return err
+            }
+	}
     }
+    return nil
 }
 
 type RandomUserID struct {
@@ -220,6 +245,7 @@ type RandomUserID struct {
 }
 
 func (p RandomUserID) GenerateData() string {
+    fmt.Printf("Starting to generate data for random User id \n")
     s1 := rand.NewSource(time.Now().UnixNano())
     r2 := rand.New(s1)
     _data := r2.Intn(p.max)
@@ -249,6 +275,7 @@ func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string
     for _, column := range dataConfig.Columns {
         // Define the function for template.
         if column.Function == "template" {
+            fmt.Printf("The data is staring to generate for template\n")
             var _min, _max int
             var _format, _content string
             for _, _data := range column.Parameters {
@@ -271,6 +298,8 @@ func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string
                     _content = _data.Value
                 }
             }
+	    fmt.Printf("min: %d, max: %d \n", _min, _max)
+	    fmt.Printf("format: %s, content: %s \n", _format, _content)
 
             tmpl, err := template.New("").Parse(_content)
 
@@ -284,6 +313,7 @@ func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string
             mapGeneration[column.Name] = &userGenerate
         }
 
+	// ----- Todo: 
         if column.Function == "Template" {
             var _content string
             for _, _data := range column.Parameters {
@@ -313,7 +343,7 @@ func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string
             mapTemplate[column.Name] = tmpl
         }
 
-        // Generate the random date between min and max
+        // ----- Generate the random date between min date and max
         if column.Function == "RandomDate" {
            var _min, _max time.Time
            for _, _data := range column.Parameters {
@@ -336,6 +366,7 @@ func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string
                return _min.AddDate(0, 0, rand.Intn(_days)).Format("2006-01-02"), nil
            }
        }
+       // ----------
     }
 
     for idx := 1; idx <= rows; idx++ {
@@ -423,6 +454,7 @@ func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string
             }
 
             if column.Function == "template" {
+                fmt.Printf("Starting to generate the data [%s] vs [%#v] -> [%#v] \n", column.Name, mapGeneration[column.Name], mapTemplate[column.Name])
                 userGenerate := mapGeneration[column.Name]
 
                 tmpl := mapTemplate[column.Name]
@@ -600,7 +632,7 @@ func contains(s []string, str string) bool {
     return false
 }
 
-func parseTemplate(dbConn TiDBLightningConn, configFile string) {
+func parseTemplate(dbConn *TiDBLightningConn, configFile string) {
     data, err := embed.ReadTemplate("templates/tidb-lightning.toml.tpl")
     if err != nil {
         panic(err)

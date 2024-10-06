@@ -61,6 +61,8 @@ COLUMNS:
         value: RandomUserID
       - key: format
         value: "user%010d"
+      - key: content
+        value: "TestData{{.GenerateData}}"
       - key: min
         value: 1
       - key: max
@@ -110,6 +112,51 @@ COLUMNS:
        - key: content
          value: '{"access_type": "{{$BROWSER}}", "ip_address": "{{$IPADDR}}"}'
 #+END_SRC
+** template
+The following configuration uses the template function to generate structured data for the receiver column. This feature allows dynamic data generation by specifying a structure (RandomUserID) within the application, along with various parameters to customize the output. Below is a breakdown of the key elements in the configuration:
+   #+BEGIN_SRC
+   -
+     IDX: 03
+     Name: receiver
+     DataType: string
+     Function: template
+     Parameters:
+       - key: name
+         value: RandomUserID
+       - key: format
+         value: "user%010d"
+       - key: content
+         value: "TestData{{.GenerateData}}"
+       - key: min
+         value: 1
+       - key: max
+         value: 1000
+   #+END_SRC
+   Explanation:
+   + IDX:  
+     The index of the column being generated. In this case, 03 corresponds to the receiver column.
+
+   + Name:
+     This is the name of the column where the generated data will be inserted. The column name is receiver.
+
+   + DataType:
+     Specifies the type of data being generated for this column. In this case, the data type is string.
+
+   + Function:
+     The function used to generate the data. Here, the template function is employed to create data based on a predefined structure in the application.
+
+   + Parameters:
+     - key: name:
+       Defines the struct or data model name in the application responsible for generating data. In this case, RandomUserID is the struct, and its GenerateData method will be used to produce values.
+
+     - key: format:
+       Specifies the format used to generate a string from the RandomUserID. The format "user%010d" ensures that the user ID is generated as a zero-padded 10-digit number.
+
+     - key: content:
+       Defines the template content that will be used to generate the value for this column. TestData{{.GenerateData}} embeds the output from the GenerateData function, resulting in data such as "TestDataUser0000001234".
+
+     - key: min and key: max:
+       These parameters provide the input range for the GenerateData function. It generates a random number within the range of min (1) to max (1000), which is passed to the struct to generate the user ID.
 
 * Command
   | Parameter | Comment                                        |

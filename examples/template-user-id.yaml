@@ -1,0 +1,17 @@
+COLUMNS:
+  -
+    IDX: 01
+    Name: template-example
+    DataType: string
+    Function: template
+    Parameters:
+      - key: name
+        value: RandomUserID
+      - key: format
+        value: "user%010d"
+      - key: content
+        value: "TestData{{.GenerateData}}"
+      - key: min
+        value: 1
+      - key: max
+        value: 1000

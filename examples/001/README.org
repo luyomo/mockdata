@@ -1,0 +1,9 @@
+* Test case 001
+  pd: Standard_F4s_v2       4cpu 8G
+  tidb: Standard_F8s_v2     8cpu 16G
+  tikv: Standard_E8s_v4     8cpu 64G
+
+* Test case 002
+  pd: Standard_F8s_v2       8cpu 16G
+  tidb: Standard_F8s_v2     8cpu 16G
+  tikv: Standard_E8s_v4     8cpu 64G

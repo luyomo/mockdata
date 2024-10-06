@@ -1,0 +1,55 @@
+ROWS: 5
+COLUMNS:
+  -
+    IDX: 01
+    Name: col_1
+    DataType: string
+    Function: template
+    Parameters:
+      - key: name
+        value: RandomUserID
+      - key: format
+        value: "user%010d"
+      - key: content
+        value: "membership-{{.GenerateData}}"
+      - key: min
+        value: 1
+      - key: max
+        value: 1000
+  -
+    IDX: 02
+    Name: col_2
+    DataType: int
+    Function: random
+    Min: 1
+    Max: 500
+  -
+    IDX: 03
+    Name: col_3
+    DataType: datetime
+    Function: RandomDate
+    Parameters:
+      - key: min
+        value: 2022-01-01
+      - key: max
+        value: 2022-12-31
+  -
+    IDX: 04
+    Name: col_4
+    DataType: datetime
+    Function: RandomDate
+    Parameters:
+      - key: min
+        value: 2022-01-01
+      - key: max
+        value: 2022-12-31
+  -
+    IDX: 05
+    Name: col_5
+    DataType: string
+    Function: uuid
+  -
+    IDX: 06
+    Name: col_6
+    DataType: string
+    Function: uuid

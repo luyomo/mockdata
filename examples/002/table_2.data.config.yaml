@@ -1,0 +1,50 @@
+ROWS: 20
+COLUMNS:
+  -
+    IDX: 01
+    Name: id
+    DataType: bigint
+    Function: sequence
+    Parameters:
+      - key: start
+        value: 30002
+  -
+    IDX: 02
+    Name: col_1
+    DataType: int
+    Function: random
+    Max: 20
+    Min: 1
+  -
+    IDX: 03
+    Name: col_2
+    DataType: int
+    Function: random
+    Min: 1
+    Max: 100
+  -
+    IDX: 04
+    Name: col_3
+    DataType: string
+    Function: uuid
+  -
+    IDX: 05
+    Name: col_4
+    DataType: datetime
+    Function: RandomDate
+    Parameters:
+      - key: min
+        value: 2022-01-01
+      - key: max
+        value: 2022-12-31
+  -
+    IDX: 06
+    Name: col_5
+    DataType: datetime
+    Function: RandomDate
+    Parameters:
+      - key: min
+        value: 2022-01-01
+      - key: max
+        value: 2022-12-31
+

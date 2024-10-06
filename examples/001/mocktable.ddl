@@ -1,5 +1,5 @@
 
-create table mocktable001(
+create table mocktable002(
   id bigint not null, 
   order_date date not null, 
   market_id bigint not null, 
