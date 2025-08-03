@@ -1,0 +1,67 @@
+ROWS: 5000
+COLUMNS:
+  - IDX: 01
+    Name: id
+    DataType: int
+    Function: sequence
+  - IDX: 02
+    Name: user_id
+    DataType: int
+    Function: random
+    Min: 10000
+    Max: 99999
+    NullProbability: 0.05
+  - IDX: 03
+    Name: name
+    DataType: string
+    Function: RandomString
+    Parameters:
+    - key: min
+      value: 20
+    - key: max
+      value: 30
+  - IDX: 05
+    Name: created_at
+    DataType: datetime
+    Function: RandomDate
+    Parameters:
+    - key: min
+      value: 2020-01-01
+    - key: max
+      value: 2023-12-31
+  - IDX: 06
+    Name: updated_at
+    DataType: datetime
+    Function: RandomDate
+    Parameters:
+    - key: after
+      value: created_at
+    - key: minDays
+      value: 0
+    - key: maxDays
+      value: 7
+    NullProbability: 0.2
+  - IDX: 07
+    Name: storage_for
+    DataType: string
+    Function: WeightedList
+    Parameters:
+    - key: values
+      value: ["BTC", "ETH", "XRP", "JPY", "USD", "EUR", null]
+    - key: weights
+      value: [30, 25, 15, 10, 10, 5, 5]
+  - IDX: 08
+    Name: ios_device_token
+    DataType: string
+    Function: uuid
+    NullProbability: 0.7
+  - IDX: 09
+    Name: invite_token
+    DataType: string
+    Function: RandomHex
+    NullProbability: 0.6
+  - IDX: 10
+    Name: buy_order_fee_rate
+    DataType: decimal
+    Function: RandomDecimal
+    NullProbability: 0.4
