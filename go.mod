@@ -6,6 +6,7 @@ require (
 	github.com/AstroProfundis/tabby v1.1.1
 	github.com/BurntSushi/toml v1.2.1
 	github.com/ScaleFT/sshkeys v1.2.0
+	github.com/aws/aws-sdk-go v1.30.24
 	github.com/fatih/color v1.15.0
 	github.com/godror/godror v0.37.0
 	github.com/google/uuid v1.3.0

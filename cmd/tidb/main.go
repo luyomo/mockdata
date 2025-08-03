@@ -17,12 +17,16 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 
 	"archive/tar"
 	"compress/gzip"
 	"io"
 
 	"os/exec"
+	"path/filepath"
 
 	"errors"
 	"github.com/spf13/cobra"
@@ -55,9 +59,9 @@ var rootCmd = &cobra.Command{
 	Short: "Generate mock data",
 	Long:  `Generate mock data `,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("Hello world \n")
-		fmt.Printf("opts: %#v \n", opts)
-		fmt.Printf("dbConn: %#v \n", dbConn)
+		// fmt.Printf("Hello world \n")
+		// fmt.Printf("opts: %#v \n", opts)
+		// fmt.Printf("dbConn: %#v \n", dbConn)
 		err := generateData(&opts, &dbConn)
 		if err != nil {
 			panic(err)
@@ -98,7 +102,7 @@ type CmdOpts struct {
 var opts CmdOpts
 var dbConn TiDBLightningConn
 
-var MAPFunc = make(map[string]func(interface{}) (string, error))
+var MAPFunc = make(map[string]func(*rand.Rand, interface{}) (string, error))
 
 func main() {
 
@@ -126,44 +130,41 @@ func main() {
 }
 
 func generateData(opts *CmdOpts, dbConn *TiDBLightningConn) error {
-	MAPFunc["BROWSER"] = func(interface{}) (string, error) {
-		_value := BROWSER[rand.Intn(len(BROWSER))]
+	// s1 := rand.NewSource(time.Now().UnixNano())
+	// r2 := rand.New(s1)
+	// var mu sync.Mutex
+
+	MAPFunc["BROWSER"] = func(r2 *rand.Rand, intf interface{}) (string, error) {
+		_value := BROWSER[r2.Intn(len(BROWSER))]
 		return _value, nil
 	}
 
-	MAPFunc["IPADDR"] = func(interface{}) (string, error) {
-		_value := fmt.Sprintf("%d.%d.%d.%d", 1+rand.Intn(254), rand.Intn(255), rand.Intn(255), rand.Intn(255))
+	MAPFunc["IPADDR"] = func(r2 *rand.Rand, intf interface{}) (string, error) {
+		_value := fmt.Sprintf("%d.%d.%d.%d", 1+r2.Intn(254), r2.Intn(255), r2.Intn(255), r2.Intn(255))
 		return _value, nil
 	}
 
-	MAPFunc["UUID"] = func(interface{}) (string, error) {
+	MAPFunc["UUID"] = func(r2 *rand.Rand, intf interface{}) (string, error) {
 		return uuid.New().String(), nil
 	}
 
-	MAPFunc["RandomInt"] = func(interface{}) (string, error) {
-		s1 := rand.NewSource(time.Now().UnixNano())
-		r2 := rand.New(s1)
+	MAPFunc["RandomInt"] = func(r2 *rand.Rand, intf interface{}) (string, error) {
 		_data := strconv.Itoa(r2.Intn(100))
 		return _data, nil
 	}
 
-	MAPFunc["RandomDecimal"] = func(interface{}) (string, error) {
-		s1 := rand.NewSource(time.Now().UnixNano())
-		r2 := rand.New(s1)
-		// Generate random decimal with 2 decimal places
+	MAPFunc["RandomDecimal"] = func(r2 *rand.Rand, intf interface{}) (string, error) {
 		intPart := r2.Intn(100)
 		decimalPart := r2.Intn(100)
 		_data := fmt.Sprintf("%d.%02d", intPart, decimalPart)
 		return _data, nil
 	}
 
-	MAPFunc["RandomHex"] = func(interface{}) (string, error) {
-		rand.Seed(time.Now().UnixNano())
-
+	MAPFunc["RandomHex"] = func(r2 *rand.Rand, intf interface{}) (string, error) {
 		// Getting random character
 		_data := ""
 		for _idx := 0; _idx < 10; _idx++ {
-			c := CHARSET[rand.Intn(len(CHARSET))]
+			c := CHARSET[r2.Intn(len(CHARSET))]
 			_data += string(c)
 		}
 
@@ -215,10 +216,14 @@ func generateData(opts *CmdOpts, dbConn *TiDBLightningConn) error {
 			go func(_index int) {
 				// fmt.Printf("The index is <%d> \n", _index + _loop*threads)
 
-				csvFile := fmt.Sprintf("%s/%s.%03d.csv", csvOutputFolder, opts.FileName, _index)
+				csvFile := fmt.Sprintf("%s/%s.%03d.csv", csvOutputFolder, opts.FileName, _index+_loop*opts.Threads)
 				err := GenerateDataTo(opts.Base+_index+_loop*opts.Threads, opts.Rows, mockDataConfig, csvFile)
 				if err != nil {
 					panic(err)
+				}
+
+				if err := pushCSV2S3(csvFile); err != nil {
+                    panic(err)
 				}
 
 				defer waitGroup.Done()
@@ -262,7 +267,7 @@ type RandomUserID struct {
 }
 
 func (p RandomUserID) GenerateData() string {
-	fmt.Printf("Starting to generate data for random User id \n")
+	// fmt.Printf("Starting to generate data for random User id \n")
 	s1 := rand.NewSource(time.Now().UnixNano())
 	r2 := rand.New(s1)
 	_data := r2.Intn(p.max)
@@ -270,7 +275,7 @@ func (p RandomUserID) GenerateData() string {
 }
 
 func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string) error {
-	fmt.Printf("Starting to generate data for %d rows \n", rows)
+	// fmt.Printf("Starting to generate data for %d rows \n", rows)
 	// Prepare the file handle to output the data into
 	fFile, err := os.Create(file)
 	if err != nil {
@@ -280,18 +285,18 @@ func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string
 
 	// Generate the random number generation instance
 	s1 := rand.NewSource(time.Now().UnixNano())
-
+	r2 := rand.New(s1)
+	
 	// Generate the string template instance
-
-	var mapTemplate = make(map[string]*template.Template)
+    var mapTemplate = make(map[string]*template.Template)
 	var mapFunc = make(map[string]func(interface{}) (string, error))
-	var mapFuncs = make(map[string]map[string]func(interface{}) (string, error))
+	var mapFuncs = make(map[string]map[string]func(*rand.Rand, interface{}) (string, error))
 
 	var mapGeneration = make(map[string]interface{})
 
 	// Define all the implementation here to improve the performance. Prepare the implementation only one time.
 	for _, column := range dataConfig.Columns {
-		fmt.Printf("The column is <%#v> \n", column)
+		// fmt.Printf("The column is <%#v> \n", column)
 
 		// Processes a column configured with the "template" function to enable dynamic data generation.
 		// This logic pre-processes and caches templates and generators upfront for two key purposes:
@@ -309,7 +314,7 @@ func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string
 		// Note: Failures during parsing (e.g., invalid templates or parameters) will
 		// immediately return/log errors to surface issues during initialization.
 		if column.Function == "template" {
-			fmt.Printf("The data is staring to generate for template\n")
+			// fmt.Printf("The data is staring to generate for template\n")
 			var _min, _max int
 			var _format, _content string
 			for _, _data := range column.Parameters {
@@ -332,8 +337,8 @@ func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string
 					_content = _data.Value.(string)
 				}
 			}
-			fmt.Printf("min: %d, max: %d \n", _min, _max)
-			fmt.Printf("format: %s, content: %s \n", _format, _content)
+			// fmt.Printf("min: %d, max: %d \n", _min, _max)
+			// fmt.Printf("format: %s, content: %s \n", _format, _content)
 
 			tmpl, err := template.New("").Parse(_content)
 
@@ -390,7 +395,7 @@ func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string
 
 			mapFunc[column.Name] = func(_after interface{}) (string, error) {
 				// Generate random number between 0 and total weight
-				r := rand.Intn(totalWeight)
+				r := r2.Intn(totalWeight)
 
 				// Find the selected value based on weights
 				currentWeight := 0
@@ -404,6 +409,84 @@ func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string
 			}
 		}
 
+if column.Function == "WeightedIntRange" {
+    var ranges []string
+    var weights []int
+
+    // Extract ranges and weights from parameters
+    for _, param := range column.Parameters {
+        if param.Key == "values" {
+            if rangesInterface, ok := param.Value.([]interface{}); ok {
+                ranges = make([]string, len(rangesInterface))
+                for i, r := range rangesInterface {
+                    ranges[i] = r.(string)
+                }
+            }
+        }
+        if param.Key == "weights" {
+            if weightsInterface, ok := param.Value.([]interface{}); ok {
+                weights = make([]int, len(weightsInterface))
+                for i, w := range weightsInterface {
+                    switch v := w.(type) {
+                    case int:
+                        weights[i] = v
+                    case float64:
+                        weights[i] = int(v)
+                    }
+                }
+            }
+        }
+    }
+
+    // Validate parameters
+    if len(ranges) != len(weights) {
+        return fmt.Errorf("ranges and weights must have same length")
+    }
+
+    // Calculate total weight
+    totalWeight := 0
+    for _, w := range weights {
+        totalWeight += w
+    }
+
+	mapValue := make(map[int][]int)
+	for _i, _v := range ranges {
+		// Parse the selected range (e.g. "1-10")
+		rangeParts := strings.Split(_v, "-")
+		if len(rangeParts) != 2 {
+			return fmt.Errorf("invalid range format: %s", _v)
+		}
+		
+		min, err := strconv.Atoi(rangeParts[0])
+		if err != nil {
+			return err
+		}
+		
+		max, err := strconv.Atoi(rangeParts[1]) 
+		if err != nil {
+			return err
+		}
+		mapValue[_i] = []int{min, max}
+	}
+
+    mapFunc[column.Name] = func(_after interface{}) (string, error) {
+        // Generate random number between 0 and total weight
+        r := r2.Intn(totalWeight)
+
+        // Find the selected range based on weights
+        currentWeight := 0
+        for i, w := range weights {
+            currentWeight += w
+            if r < currentWeight {
+				min, max := mapValue[i][0], mapValue[i][1]
+                // Generate random number within the selected range
+                return strconv.Itoa(min + r2.Intn(max-min+1)), nil
+            }
+        }
+        return "", nil
+    }
+}
+
 		if column.Function == "Template" {
 			var _content string
 			for _, _data := range column.Parameters {
@@ -416,7 +499,7 @@ func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string
 			ret := re.FindAllStringSubmatch(_content, -1)
 			// fmt.Printf("The result is %#v \n", ret)
 
-			var _mapFunc = make(map[string]func(interface{}) (string, error))
+			var _mapFunc = make(map[string]func(*rand.Rand, interface{}) (string, error))
 
 			for _, _match := range ret {
 				_content = strings.Replace(_content, _match[0], fmt.Sprintf("{{ index .Data \"%s\"}}", _match[1]), -1)
@@ -438,6 +521,7 @@ func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string
 			var _min, _max time.Time
 			_minDays := 0
 			_maxDays := 7
+			_after := ""
 			ok := false
 			for _, _data := range column.Parameters {
 				if _data.Key == "min" {
@@ -466,37 +550,47 @@ func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string
 						return fmt.Errorf("min value must be int, got %T", _data.Value)
 					}
 				}
+				if _data.Key == "after" {
+					_after, ok = _data.Value.(string)
+					if !ok {
+                        return fmt.Errorf("after value must be string, got %T", _data.Value)
+					}
+				}
 			}
 			_days := int(_max.Sub(_min).Hours() / 24)
-			fmt.Printf("max: %d, min: %d, _days: %d \n", _max, _min, _days)
-			mapFunc[column.Name] = func(_after interface{}) (string, error) {
-				if _after == nil {
-					return _min.AddDate(0, 0, rand.Intn(_days)).Format("2006-01-02"), nil
+			// fmt.Printf("max: %d, min: %d, _days: %d \n", _max, _min, _days)
+			mapFunc[column.Name] = func(_dataMap interface{}) (string, error) {
+				if _after == "" {
+					return _min.AddDate(0, 0, r2.Intn(_days)).Format("2006-01-02"), nil
 				}
-				afterStr, ok := _after.(string)
+				dataMap, ok := _dataMap.(map[string]string)
 				if !ok {
-					return "", fmt.Errorf("after value must be string, got %T", _after)
+					return "", fmt.Errorf("dataMap must be map[string]string, got %T", _dataMap)
 				}
 
-				afterStr = strings.Trim(afterStr, "\"")
+				afterStr := strings.Trim(dataMap[_after], "\"")
 
 				afterDate, err := time.Parse("2006-01-02", afterStr)
 				if err != nil {
 					return "", fmt.Errorf("failed to parse after date: %v", err)
 				}
-				daysDiff := rand.Intn(_maxDays-_minDays+1) + _minDays
+				daysDiff := r2.Intn(_maxDays-_minDays+1) + _minDays
 				return afterDate.AddDate(0, 0, daysDiff).Format("2006-01-02"), nil
 			}
 		}
 		// ----------
 	}
 
-	fmt.Printf("The data is staring to generate \n")
+	insUUID := uuid.New()
+	// fmt.Printf("The data is staring to generate \n")
 	for idx := 1; idx <= rows; idx++ {
 		var arrData []string
 		mapData := make(map[string]string)
-		for colIdx, column := range dataConfig.Columns {
-			fmt.Printf("The data is staring to generate for %d \n", colIdx+1)
+		// originTime := time.Now()
+		for _, column := range dataConfig.Columns {
+			// passTime := time.Now().Sub(originTime)
+			// originTime = time.Now()
+			// fmt.Printf("[%s] The data is staring to generate for %d \n", passTime, colIdx)
 			var _data string
 
 			if column.Function == "sequence" {
@@ -504,29 +598,26 @@ func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string
 			}
 
 			if column.Function == "uuid" {
-				_data = uuid.New().String()
+				_data = insUUID.String()
 			}
 
 			if column.Function == "list" {
-				_data = column.Values[rand.Intn(len(column.Values))]
+				_data = column.Values[r2.Intn(len(column.Values))]
 			}
 
 			if column.Function == "random" {
-				if strings.Contains("int,bigint,smallint,mediumint", column.DataType) {
-					r2 := rand.New(s1)
-					_data = strconv.Itoa(r2.Intn(column.Max))
-				}
+				_data = strconv.Itoa(r2.Intn(column.Max))
 			}
 
 			if column.Function == "RandomDecimal" {
-				_data, err = MAPFunc["RandomDecimal"](nil)
+				_data, err = MAPFunc["RandomDecimal"](r2, nil)
 				if err != nil {
 					panic(err)
 				}
 			}
 
 			if column.Function == "RandomHex" {
-				_data, err = MAPFunc["RandomHex"](nil)
+				_data, err = MAPFunc["RandomHex"](r2, nil)
 				if err != nil {
 					panic(err)
 				}
@@ -539,26 +630,18 @@ func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string
 				}
 			}
 
+			if column.Function == "WeightedIntRange" {
+				_data, err = mapFunc[column.Name](nil)
+				if err != nil {
+					panic(err)
+				}
+			}
+
 			if column.Function == "RandomDate" {
-				_after := ""
-				for _, _p := range column.Parameters {
-					if _p.Key == "after" {
-						_after = _p.Value.(string)
-					}
-				}
-
-				if _after == "" {
-					_data, err = mapFunc[column.Name](nil)
-					if err != nil {
-						panic(err)
-					}
-				} else if mapData[_after] != "" {
-					_data, err = mapFunc[column.Name](mapData[_after])
-					if err != nil {
-						panic(err)
-					}
-				}
-
+				_data, err = mapFunc[column.Name](mapData)
+				if err != nil {
+					panic(err)
+                }
 			}
 
 			// Make the function common
@@ -580,12 +663,11 @@ func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string
 						_max = maxVal
 					}
 				}
-				rand.Seed(time.Now().UnixNano())
 
 				// Getting random character
 				_data = ""
-				for _idx := 0; _idx < _min+rand.Intn(_max-_min+1); _idx++ {
-					c := CHARSET[rand.Intn(len(CHARSET))]
+				for _idx := 0; _idx < _min+r2.Intn(_max-_min+1); _idx++ {
+					c := CHARSET[r2.Intn(len(CHARSET))]
 					_data += string(c)
 				}
 			}
@@ -606,12 +688,11 @@ func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string
 						}
 					}
 				}
-				rand.Seed(time.Now().UnixNano())
 
 				// Getting random character
 				_data = ""
-				for _idx := 0; _idx < _min+rand.Intn(_max-_min+1); _idx++ {
-					c := CHARSET[rand.Intn(len(CHARSET))]
+				for _idx := 0; _idx < _min+r2.Intn(_max-_min+1); _idx++ {
+					c := CHARSET[r2.Intn(len(CHARSET))]
 					_data += string(c)
 				}
 				_data += strconv.Itoa(threads*rows + idx)
@@ -635,7 +716,7 @@ func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string
 
 				_funcs := mapFuncs[column.Name]
 				for _key, _func := range _funcs {
-					_value, err := _func(nil)
+					_value, err := _func(r2, nil)
 					if err != nil {
 						return err
 					}
@@ -661,11 +742,17 @@ func GenerateDataTo(threads, rows int, dataConfig MockDataStructure, file string
 			mapData[column.Name] = _data
 			arrData = append(arrData, _data)
 		}
-		fmt.Printf("The data is <%#v> and <%s> \n", arrData, strings.Join(arrData, ","))
-		fmt.Printf("The data is <%#v> \n", mapData)
+		// fmt.Printf("The data is <%#v> and <%s> \n", arrData, strings.Join(arrData, ","))
+		// fmt.Printf("The data is <%#v> \n", mapData)
 		_, err := writer.WriteString(strings.Join(arrData, ",") + "\n")
 		if err != nil {
 			return err
+		}
+		// passTime := time.Now().Sub(originTime)
+		// originTime = time.Now()
+		// fmt.Printf("[%s] WriteString  \n", passTime)
+		if idx%10000 == 0 {
+			writer.Flush()
 		}
 	}
 	writer.Flush()
@@ -827,4 +914,54 @@ func parseTemplate(dbConn *TiDBLightningConn, configFile string) {
 		panic(err)
 	}
 
+}
+
+func pushCSV2S3(fileName string) error {
+    // Create AWS session
+    sess, err := session.NewSession(&aws.Config{
+        Region: aws.String("us-east-1"), // Replace with your desired region
+    })
+    if err != nil {
+        return fmt.Errorf("failed to create AWS session: %v", err)
+    }
+
+    // Create S3 service client
+    s3Client := s3.New(sess)
+
+    // Open the file
+    file, err := os.Open(fileName)
+    if err != nil {
+        return fmt.Errorf("failed to open file %s: %v", fileName, err)
+    }
+    defer file.Close()
+
+    // Get file size and create buffer
+    fileInfo, _ := file.Stat()
+    size := fileInfo.Size()
+    buffer := make([]byte, size)
+    
+    // Read file content
+    file.Read(buffer)
+
+    // Create input parameters for S3 upload
+    input := &s3.PutObjectInput{
+        Bucket:        aws.String("jay-data"), // Replace with your bucket name
+        Key:           aws.String(fmt.Sprintf("mockdata/%s", filepath.Base(fileName))),
+        Body:          bytes.NewReader(buffer),
+        ContentType:   aws.String("text/csv"),
+        ContentLength: aws.Int64(size),
+    }
+
+    // Upload to S3
+    _, err = s3Client.PutObject(input)
+    if err != nil {
+        return fmt.Errorf("failed to upload file to S3: %v", err)
+    }
+
+    // Delete the local file after successful S3 upload
+    if err := os.Remove(fileName); err != nil {
+        return fmt.Errorf("failed to delete local file %s: %v", fileName, err)
+    }
+
+    return nil
 }
