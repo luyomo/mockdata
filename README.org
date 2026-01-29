@@ -374,4 +374,18 @@ OhMyTiUP$ ./bin/mockdata --threads 16 --loop 1 --config etc/data.config.yaml --o
     |-------------+------------+----------------|
     | 23GB*3=69GB | 170GB      | 1:8            |
   #+END_SRC
+* How to use LLM to generate the yaml file for data generation.
+- Copy this README.org's contents into chat like hatGPT/Gemini/DeepSeek/Kimi etc
+- Give the instruction as below:
+  #+BEGIN_SRC
+  Below is the DDL.
 
+  CREATE TABLE `test01` (
+    `col01` int(11) NOT NULL,
+    `col02` int(11) DEFAULT NULL,
+    `updated_at` timestamp NULL DEFAULT NULL,
+    PRIMARY KEY (`col01`) /*T![clustered_index] CLUSTERED */
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+  Please prepare the yaml file for me to generate the data.
+  #+END_SRC
