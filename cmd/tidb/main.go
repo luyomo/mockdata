@@ -222,9 +222,9 @@ func generateData(opts *CmdOpts, dbConn *TiDBLightningConn) error {
 					panic(err)
 				}
 
-				if err := pushCSV2S3(csvFile); err != nil {
-                    panic(err)
-				}
+//				if err := pushCSV2S3(csvFile); err != nil {
+//                    panic(err)
+//				}
 
 				defer waitGroup.Done()
 			}(_idx)

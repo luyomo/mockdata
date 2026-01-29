@@ -112,51 +112,196 @@ COLUMNS:
        - key: content
          value: '{"access_type": "{{$BROWSER}}", "ip_address": "{{$IPADDR}}"}'
 #+END_SRC
-** template
-The following configuration uses the template function to generate structured data for the receiver column. This feature allows dynamic data generation by specifying a structure (RandomUserID) within the application, along with various parameters to customize the output. Below is a breakdown of the key elements in the configuration:
-   #+BEGIN_SRC
-   -
-     IDX: 03
-     Name: receiver
-     DataType: string
-     Function: template
-     Parameters:
-       - key: name
-         value: RandomUserID
-       - key: format
-         value: "user%010d"
-       - key: content
-         value: "TestData{{.GenerateData}}"
-       - key: min
-         value: 1
-       - key: max
-         value: 1000
-   #+END_SRC
-   Explanation:
-   + IDX:  
-     The index of the column being generated. In this case, 03 corresponds to the receiver column.
-
-   + Name:
-     This is the name of the column where the generated data will be inserted. The column name is receiver.
-
-   + DataType:
-     Specifies the type of data being generated for this column. In this case, the data type is string.
-
-   + Function:
-     The function used to generate the data. Here, the template function is employed to create data based on a predefined structure in the application.
-
-   + Parameters:
-     - key: name:
-       Defines the struct or data model name in the application responsible for generating data. In this case, RandomUserID is the struct, and its GenerateData method will be used to produce values.
-
-     - key: format:
-       Specifies the format used to generate a string from the RandomUserID. The format "user%010d" ensures that the user ID is generated as a zero-padded 10-digit number.
-
-     - key: content:
-       Defines the template content that will be used to generate the value for this column. TestData{{.GenerateData}} embeds the output from the GenerateData function, resulting in data such as "TestDataUser0000001234".
-
-     - key: min and key: max:
-       These parameters provide the input range for the GenerateData function. It generates a random number within the range of min (1) to max (1000), which is passed to the struct to generate the user ID.
+** sequence
+To generate sequential integers using the sequence function in this tool, you can configure your data schema as follows:
+#+BEGIN_SRC
+- IDX: 01
+  Name: id
+  DataType: int
+  Function: sequence
+#+END_SRC
+Explanation:
+- Function: sequence generates a sequence of integers, starting from a specified initial value and incrementing by a specified step.
+** RandomString
+To generate random strings using the RandomString function in this tool, you can configure your data schema as follows:
+#+BEGIN_SRC
+- IDX: 03
+  Name: name
+  DataType: string
+  Function: RandomString
+  Parameters:
+  - key: min
+    value: 20
+  - key: max
+    value: 30
+#+END_SRC
+Explanation:
+- Function: RandomString generates a random string with a specified length range.
+- Parameters:
+  + min: The minimum length of the generated string (inclusive).
+  + max: The maximum length of the generated string (inclusive).
+** RandomDate
+To generate random dates using the RandomDate function in this tool, you can configure your data schema as follows:
+#+BEGIN_SRC
+- IDX: 06
+  Name: updated_at
+  DataType: datetime
+  Function: RandomDate
+  Parameters:
+  - key: min
+    value: 2023-01-01
+  - key: max
+    value: 2023-12-31
+  - key: after
+    value: created_at
+  - key: minDays
+    value: 0
+  - key: maxDays
+    value: 7
+#+END_SRC
+Explanation:  
+- Function: RandomDate generates a random date within a specified range.
+- Parameters:
+  + min: The earliest possible date in the range (inclusive). This should be a string in the format "YYYY-MM-DD".
+  + max: The latest possible date in the range (inclusive). This should be a string in the format "YYYY-MM-DD".
+  + after: The name of another field (e.g., created_at) that this date should be after. This ensures that the generated date is logically consistent with another date field.
+  + minDays: The minimum number of days after the after date.
+  + maxDays: The maximum number of days after the after date.
+Usage:  
+- The RandomDate function generates a random date that is between minDays and maxDays after the date specified in the after field.
+- If the after field is not specified, it generates a random date between min and max dates.
+- This function is useful for creating realistic date ranges, such as ensuring that an updated_at date is always after a created_at date.
+- The min and max parameters define the absolute range within which the random date can fall, while minDays and maxDays define the relative range after the after date.
+** RandomDecimal
+Generates a random decimal number within a specified range.
+#+BEGIN_SRC
+- IDX: 04
+  Name: price
+  DataType: decimal
+  Function: RandomDecimal
+#+END_SRC
+Function Description:  
+- Generates a decimal number in format: integer.fraction
+- Integer part range: 0-99
+- Fractional part range: 00-99 (fixed two decimal places)
+- Example output: "45.78", "3.15"
+** WeightedIntRange
+To generate random integers within weighted ranges using the WeightedIntRange function in this tool, you can configure your data schema as follows:
+#+BEGIN_SRC
+- IDX: 07
+  Name: age
+  DataType: integer
+  Function: WeightedIntRange
+  Parameters:
+  - key: values
+    value:
+      - "1-10"
+      - "11-20"
+      - "21-30"
+  - key: weights
+    value:
+      - 1
+      - 2
+      - 3
+#+END_SRC
+Explanation:  
+- Function: WeightedIntRange generates a random integer within specified ranges, with each range having a different weight.
+- Parameters:
+  + values: A list of string ranges, where each range is in the format "min-max". For example, "1-10" represents integers from 1 to 10 (inclusive).
+  + weights: A list of integers representing the weights for each corresponding range in values. Higher weights increase the likelihood of selecting a number from that range.
+Usage:  
+- The WeightedIntRange function generates a random integer within specified ranges, with each range having a different weight.  
+- The values parameter defines the ranges, and the weights parameter defines the likelihood of selecting a number from each range.
+- For example, if values is ["1-10", "11-20", "21-30"] and weights is [1, 2, 3], the function is more likely to generate a number from the range "21-30" compared to "1-10".
+- This function is useful for generating realistic data where certain ranges are more common than others.
+** WeightedList
+To generate random values from a weighted list using the WeightedList function in this tool, you can configure your data schema as follows:
+#+BEGIN_SRC
+- IDX: 07
+  Name: storage_for
+  DataType: string
+  Function: WeightedList
+  Parameters:
+  - key: values
+    value: ["BTC", "ETH", "XRP", "JPY", "USD", "EUR", null]
+  - key: weights
+    value: [30, 25, 15, 10, 10, 5, 5]
+#+END_SRC
+Explanation:  
+- Function: WeightedList generates a random value from a list, with each value having a different weight.
+- Parameters:
+  + values: A list of values that can be of any type (strings, numbers, null, etc.). These are the possible values that can be generated.
+  + weights: A list of integers representing the weights for each corresponding value in values. Higher weights increase the likelihood of selecting that value.
+Usage:
+- The WeightedList function generates a random value from a list, with each value having a different weight.
+- The values parameter defines the possible values that can be generated.
+- The weights parameter defines the likelihood of selecting each value.
+- For example, if values is ["BTC", "ETH", "XRP", "JPY", "USD", "EUR", null] and weights is [30, 25, 15, 10, 10, 5, 5], the function is more likely to generate "BTC" compared to "EUR".
+- This function is useful for generating realistic data where certain values are more common than others.
+** BROWSER
+Randomly selects a browser name from a predefined list.
+#+BEGIN_SRC
+- IDX: 01
+  Name: browser_name
+  DataType: varchar
+  Function: BROWSER
+#+END_SRC
+Function Description:  
+- Randomly selects from the fixed browser list: ["Chrome", "IE", "Safari"]
+- Returns a string value
+- Suitable for simulating user agent data or browser usage statistics
+** IPADDR
+Generates a random IPv4 address.
+#+BEGIN_SRC
+- IDX: 02
+  Name: ip_address
+  DataType: varchar
+  Function: IPADDR
+#+END_SRC
+Function Description:  
+- Generates an IPv4 address in the format: X.X.X.X
+- First octet range: 1-254 (avoids 0)
+- Remaining octets range: 0-255
+- Example output: "192.168.1.100"
+** UUID
+Generates a version 4 UUID (Universally Unique Identifier).
+#+BEGIN_SRC
+- IDX: 03
+  Name: user_uuid
+  DataType: varchar
+  Function: UUID
+#+END_SRC
+Function Description:  
+- Uses github.com/google/uuid library to generate UUID version 4
+- Format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+- Guarantees uniqueness within a single generation (extremely low collision probability)
+- Suitable for scenarios requiring globally unique identifiers
+** UniqueRandomString
+Generates a random string with guaranteed uniqueness by appending a sequential identifier.
+#+BEGIN_SRC
+- IDX: 06
+  Name: unique_code
+  DataType: varchar
+  Function: UniqueRandomString
+  Parameters:
+    - key: min
+      value: "5"
+    - key: max
+      value: "10"
+#+END_SRC
+Function Description:  
+- Random String Generation:
+  + Generates a random string with length between min and max (inclusive)
+  + Characters are randomly selected from the uppercase and lowercase alphabet (A-Z, a-z)
+  + Example: For min=5, max=10, might generate "kLmNoP" (6 characters)
+- Uniqueness Guarantee:
+  + Appends a unique integer suffix to the random string
+  + The suffix is calculated as: (threads × rows) + current_row_index
+  + This ensures every generated string is globally unique within the data generation session
+  + Example: "kLmNoP12345"
+Parameters:
+- min (string, required): Minimum length of the random string portion
+- max (string, required): Maximum length of the random string portion
 
 * Command
   | Parameter | Comment                                        |
@@ -170,9 +315,9 @@ The following configuration uses the template function to generate structured da
   [[./png/002.png]]
 
 * Example
-** Run the mockdata command
+** Run the mockdata command to import data into TiDB
   #+BEGIN_SRC
-  $ mockdata --threads 1 --loop 1 --config /tmp/config.yaml --output /tmp/mockdata --file-name=test.test01 --rows 20 --host 10.0.154.155 --user=root --pd-ip=10.0.240.79 ----lightning-ver v8.0.0
+  $ mockdata --threads 1 --loop 1 --config /tmp/config.yaml --output /tmp/mockdata --file-name=test.test01 --rows 20 --host 10.0.154.155 --user=root --pd-ip=10.0.240.79 ----lightning-ver v8.5.4
   #+END_SRC
   [[./png/003.png]]
 ** Check the result
@@ -184,6 +329,10 @@ The following configuration uses the template function to generate structured da
   | parallel: 2              |    10000000 | 446M      |               140 |  77600 | 3.4MB     |
   | parallel: 10             |    50000000 | 2.3G      |               240 | 208000 | 9.8MB     |
   | parallel: 16             |    80000000 | 3.5G      |               433 | 184757 | 8.2MB     |
+** Run the mockdata command to generate the data only
+  #+BEGIN_SRC
+  $ mockdata --threads 1 --loop 1 --config /tmp/config.yaml --output /tmp/mockdata --file-name=test.test01 --rows 20 --data-only
+  #+END_SRC
 
 * Reference
 ** Issues
@@ -217,37 +366,38 @@ OhMyTiUP$ ./bin/mockdata --threads 16 --loop 1 --config etc/data.config.yaml --o
 
 * event_month
   #+BEING_SRC
-  time ./bin/mockdata --loop 100 --config etc/event_month.yaml --output /tmp/mockdata --file-name=test.event_month --rows 100000  --host=182.83.1.171 --user=root --pd-ip=182.83.1.118
-  real    144m8.529s                                                                                                                                                                   
-  user    380m38.129s                                                                                                                                                                  
-  sys     35m37.681s
+    time ./bin/mockdata --loop 100 --config etc/event_month.yaml --output /tmp/mockdata --file-name=test.event_month --rows 100000  --host=182.83.1.171 --user=root --pd-ip=182.83.1.118
+    real    144m8.529s
+    user    380m38.129s
+    sys     35m37.681s
 
-MySQL [test]> select data_length/(1024*1024*1024) from information_schema.tables where table_name = 'event_month' \G
-data_length/(1024*1024*1024): 176.0461
-1 row in set (0.008 sec)
+    MySQL [test]> select data_length/(1024*1024*1024) from information_schema.tables where table_name = 'event_month' \G
+    data_length/(1024*1024*1024): 176.0461
+    1 row in set (0.008 sec)
+    
+    MySQL [information_schema]> select * from table_storage_stats where table_schema = 'test' and table_name = 'event_month';
+    +--------------+-------------+----------+------------+--------------+--------------------+------------+------------+
+    | TABLE_SCHEMA | TABLE_NAME  | TABLE_ID | PEER_COUNT | REGION_COUNT | EMPTY_REGION_COUNT | TABLE_SIZE | TABLE_KEYS |
+    +--------------+-------------+----------+------------+--------------+--------------------+------------+------------+
+    | test         | event_month |      126 |          3 |         2128 |                 79 |     201236 |  160053659 |
+    +--------------+-------------+----------+------------+--------------+--------------------+------------+------------+
+    1 row in set (0.005 sec)
+    
+    admin@ip-182-83-1-7:~/tidb/tidb-data$ du -sh tikv-20160/
+    24G     tikv-20160/
+    admin@ip-182-83-1-7:~/tidb/tidb-data/tikv-20160$ du -sh * 
+    0       LOCK
+    23G     db
+    1.2M    import
+    20K     last_tikv.toml
+    23M     raft-engine
+    0       raftdb.info
+    54M     rocksdb.info
+    4.0K    snap
+    1.1G    space_placeholder_file
 
-MySQL [information_schema]> select * from table_storage_stats where table_schema = 'test' and table_name = 'event_month';
-+--------------+-------------+----------+------------+--------------+--------------------+------------+------------+
-| TABLE_SCHEMA | TABLE_NAME  | TABLE_ID | PEER_COUNT | REGION_COUNT | EMPTY_REGION_COUNT | TABLE_SIZE | TABLE_KEYS |
-+--------------+-------------+----------+------------+--------------+--------------------+------------+------------+
-| test         | event_month |      126 |          3 |         2128 |                 79 |     201236 |  160053659 |
-+--------------+-------------+----------+------------+--------------+--------------------+------------+------------+
-1 row in set (0.005 sec)
-
-admin@ip-182-83-1-7:~/tidb/tidb-data$ du -sh tikv-20160/
-24G     tikv-20160/
-admin@ip-182-83-1-7:~/tidb/tidb-data/tikv-20160$ du -sh * 
-0       LOCK
-23G     db
-1.2M    import
-20K     last_tikv.toml
-23M     raft-engine
-0       raftdb.info
-54M     rocksdb.info
-4.0K    snap
-1.1G    space_placeholder_file
+    | Disk Size   | Table Size | Compress ratio |
+    |-------------+------------+----------------|
+    | 23GB*3=69GB | 170GB      | 1:8            |
   #+END_SRC
 
-  | Disk Size   | Table Size | Compress ratio |
-  |-------------+------------+----------------|
-  | 23GB*3=69GB | 170GB      | 1:8            |
