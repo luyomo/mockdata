@@ -365,7 +365,7 @@ OhMyTiUP$ ./bin/mockdata --threads 16 --loop 1 --config etc/data.config.yaml --o
  + Add the TUI from OhMyTiUP To mockdata
 
 * event_month
-  #+BEING_SRC
+  #+BEGIN_SRC
     time ./bin/mockdata --loop 100 --config etc/event_month.yaml --output /tmp/mockdata --file-name=test.event_month --rows 100000  --host=182.83.1.171 --user=root --pd-ip=182.83.1.118
     real    144m8.529s
     user    380m38.129s
